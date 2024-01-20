@@ -1,0 +1,6 @@
+interface Test:
+    fun do_stuff() > int
+
+object MyObj(Test):
+    fun do_stuff() > int:
+        return 69

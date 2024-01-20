@@ -1,0 +1,22 @@
+# ninja log v5
+3	898	7274060931868059	CMakeFiles/compiler.dir/Tokenizer.cpp.obj	d67d9856db0bd98b
+8	1029	7274055229204953	CMakeFiles/compiler.dir/main.cpp.obj	21cb1cf4a7878795
+3	1135	7274061653746152	CMakeFiles/compiler.dir/Parser.cpp.obj	a9a0ac3191796eab
+1136	1428	7274061656665225	compiler.exe	fec47db2c08d39c6
+10	997	7274615088697208	CMakeFiles/compiler.dir/Ast.cpp.obj	b2836f8aa48abdf5
+6	1070	7274615089438093	CMakeFiles/compiler.dir/main.cpp.obj	21cb1cf4a7878795
+2	1386	7274615092578226	CMakeFiles/compiler.dir/Parser.cpp.obj	a9a0ac3191796eab
+1387	1869	7274615097397893	compiler.exe	805fcacdbff61e11
+3	688	7274615683328900	CMakeFiles/compiler.dir/Ast.cpp.obj	b2836f8aa48abdf5
+689	998	7274615686388934	compiler.exe	805fcacdbff61e11
+11	941	7274619339941223	CMakeFiles/compiler.dir/Ast.cpp.obj	b2836f8aa48abdf5
+7	1106	7274619341601216	CMakeFiles/compiler.dir/main.cpp.obj	21cb1cf4a7878795
+3	1390	7274619344421173	CMakeFiles/compiler.dir/Parser.cpp.obj	a9a0ac3191796eab
+1390	1718	7274619347702205	compiler.exe	805fcacdbff61e11
+2	720	7274619659273179	CMakeFiles/compiler.dir/Ast.cpp.obj	b2836f8aa48abdf5
+721	1036	7274619662388892	compiler.exe	805fcacdbff61e11
+29	2626	7274633187103689	CMakeFiles/compiler.dir/Ast.cpp.obj	b2836f8aa48abdf5
+23	2978	7274633190623686	CMakeFiles/compiler.dir/main.cpp.obj	21cb1cf4a7878795
+36	3036	7274633191203661	CMakeFiles/compiler.dir/Tokenizer.cpp.obj	d67d9856db0bd98b
+6	3880	7274633199653811	CMakeFiles/compiler.dir/Parser.cpp.obj	a9a0ac3191796eab
+3881	4540	7274633206254434	compiler.exe	805fcacdbff61e11

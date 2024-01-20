@@ -1,0 +1,10 @@
+if true:
+    pass
+elif false:
+    pass
+else:
+    pass
+
+guard true
+guard true else:
+    pass

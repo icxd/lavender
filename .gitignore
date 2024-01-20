@@ -13,3 +13,4 @@ _deps
 .vscode
 .idea
 a.exe
+cmake-build-debug

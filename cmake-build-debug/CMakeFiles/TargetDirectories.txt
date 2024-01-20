@@ -1,3 +1,0 @@
-C:/dev/c++/compiler/cmake-build-debug/CMakeFiles/compiler.dir
-C:/dev/c++/compiler/cmake-build-debug/CMakeFiles/edit_cache.dir
-C:/dev/c++/compiler/cmake-build-debug/CMakeFiles/rebuild_cache.dir

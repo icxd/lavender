@@ -1,41 +1,88 @@
 #pragma once
 
+#include <llvm/IR/Value.h>
 #include "Common.hpp"
 #include "Ast.hpp"
 
-enum class SymbolType {
-    Object,
-    Function,
-    Variable,
-    Unknown
+using namespace llvm;
+
+class CheckedStmt {
+public:
+    virtual ~CheckedStmt() = default;
+    virtual Value *generate() = 0;
 };
 
+class CheckedExpr {
+public:
+    virtual ~CheckedExpr() = default;
+    virtual Value *generate() = 0;
+};
+
+namespace CheckedExprDetails {
+
+    class CheckedIdExpr : public CheckedExpr {
+        Str m_id;
+
+    public:
+        explicit CheckedIdExpr(Str id) : m_id(std::move(id)) {}
+        Value *generate() override;
+    };
+
+    class CheckedIntExpr : public CheckedExpr {
+        int m_value;
+
+    public:
+        explicit CheckedIntExpr(int value) : m_value(value) {}
+        Value *generate() override;
+    };
+
+    class CheckedStringExpr : public CheckedExpr {
+        Str m_value;
+
+    public:
+        explicit CheckedStringExpr(Str value) : m_value(std::move(value)) {}
+        Value *generate() override;
+    };
+
+    class CheckedCallExpr : public CheckedExpr {
+        Unique<CheckedExpr> m_callee;
+        Vec<CheckedExpr> m_arguments;
+
+    public:
+        CheckedCallExpr(Unique<CheckedExpr> callee, Vec<CheckedExpr> arguments)
+                : m_callee(std::move(callee)), m_arguments(std::move(arguments)) {}
+        Value *generate() override;
+    };
+
+}
+
+using ScopeId = usz;
+
 struct Scope {
-    Map<Str, SymbolType> symbol_table;
-//    Map<Str, Object *> object_table;
+    ScopeId id, parent_id;
+    Vec<Str> symbols;
 };
 
 class Checker {
 public:
     Checker() noexcept;
 
-    ErrorOr<Void> check(Vec<Stmt *>);
+    ErrorOr<Void> check(const Vec<Stmt *>&);
 
 private:
-    ErrorOr<Void> statement(Stmt *);
-    ErrorOr<Type> expression(Expr *);
-    ErrorOr<Type> type(Type *);
+    ErrorOr<CheckedStmt *> statement(Stmt *);
+    ErrorOr<CheckedExpr *> expression(Expr *);
+    ErrorOr<::Type> type(::Type *);
 
     void begin_scope();
     void end_scope();
 
-    ErrorOr<SymbolType> lookup_symbol(const SpannedStr&);
-    ErrorOr<SymbolType> lookup_symbol(Scope *, const SpannedStr&);
+    bool locate_symbol(Scope *, Str);
+    bool locate_symbol(Str);
 
     template <typename... Args> Error error(const Span &, Args...);
 
 private:
-    Scope *m_global_scope{};
-    Scope *m_top{};
-    Vec<Scope *> m_scope_stack{};
+    Map<ScopeId, Scope *> m_scopes;
+    ScopeId m_next_scope_id;
 };

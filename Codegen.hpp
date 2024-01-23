@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/BasicBlock.h"
@@ -13,17 +15,3 @@
 #include "llvm/IR/Verifier.h"
 
 using namespace llvm;
-
-class CheckedExpr {
-public:
-    virtual ~CheckedExpr() = default;
-    virtual Value *generate() = 0;
-};
-
-class CheckedIntExpr : public CheckedExpr {
-    int m_value;
-
-public:
-    explicit CheckedIntExpr(int value) : m_value(value) {}
-    virtual Value *generate() override;
-};

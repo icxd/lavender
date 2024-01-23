@@ -1,47 +1,78 @@
+#include "Common.hpp"
 #include "Checker.hpp"
 #include <sstream>
 
 Checker::Checker() noexcept {
     m_scope_stack = {};
-    m_scope_stack.insert({0, new Scope});
-    m_next_scope_id = m_scope_stack.size();
+    m_next_scope_id = 0;
+    begin_scope();
 }
 
-ErrorOr<Void> Checker::check(const Vec<Stmt *>& stmts) {
+ErrorOr<Vec<CheckedStmt *>> Checker::check(const Vec<Stmt *>& stmts) {
+    Vec<CheckedStmt *> checked_stmts;
     for (Stmt *stmt : stmts) {
         if (stmt == nullptr) continue;
         CheckedStmt *checked_stmt = try$(statement(stmt));
+        if (checked_stmt == nullptr)
+            PANIC("COMPILER ERROR: CHECKER RETURNED NULLPTR FOR STATEMENT");
+        checked_stmts.push_back(checked_stmt);
     }
-
-    return Void{};
+    return checked_stmts;
 }
 
 ErrorOr<CheckedStmt *> Checker::statement(Stmt *stmt) {
     switch (static_cast<Stmt::Kind>(stmt->var.index())) {
-        case Stmt::Kind::Object:
-        case Stmt::Kind::Fun:
-        case Stmt::Kind::Var:
-        case Stmt::Kind::Return: break;
-        case Stmt::Kind::Expr: {
+        case Stmt::Kind::Object: {
+            StmtDetails::Object *object = std::get<StmtDetails::Object *>(stmt->var);
+            if (locate_symbol(object->id.value))
+                return error(object->id.span, "redefinition of symbol `", object->id.value, "`");
+            scope()->symbols.push_back(object->id.value);
 
-        } break;
+            Vec<CheckedField> fields;
+            for (const auto &field : object->fields) {
+                if (locate_symbol(field.id.value))
+                    return error(field.id.span, "redefinition of symbol `", field.id.value, "`");
+                scope()->symbols.push_back(field.id.value);
+
+                Type field_type = try$(type(field.type));
+                Opt<CheckedExpr *> field_expr = std::nullopt;
+                if (field.value.has_value())
+                    field_expr = try$(expression(field.value.value()));
+
+                fields.push_back(CheckedField{field.id.value, field_type, field_expr});
+            }
+
+            return new CheckedStmtDetails::CheckedObject(object->id.value, fields);
+        }
+        case Stmt::Kind::Fun: {
+            StmtDetails::FunDecl *fun = std::get<StmtDetails::FunDecl *>(stmt->var);
+            if (locate_symbol(fun->id.value))
+                return error(fun->id.span, "redefinition of symbol `", fun->id.value, "`");
+            scope()->symbols.push_back(fun->id.value);
+
+            return new CheckedStmtDetails::CheckedFun(fun->id.value);
+        }
+        case Stmt::Kind::Var:
+        case Stmt::Kind::Return:
+        case Stmt::Kind::Expr:
+            UNIMPLEMENTED;
     }
 
     return nullptr;
 }
 
-bool Checker::locate_symbol(Scope *scope, Str str) {
+bool Checker::locate_symbol(Scope *scope, const Str& str) {
+    if (scope == nullptr) return false;
     if (scope->symbols.empty()) return false; // FAST PATH
-    if (std::find(scope->symbols.begin(), scope->symbols.end(), str) != scope->symbols.end())
-        return true;
-    return false;
+    for (const Str& symbol : scope->symbols) {
+        if (symbol == str) return true;
+    }
+    if (scope->parent_id == 0) return false;
+    return locate_symbol(m_scope_stack[scope->parent_id], str);
 }
 
-bool Checker::locate_symbol(Str str) {
-    for (usz i = m_scope_stack.size() - 1; i >= 0; --i) {
-        if (locate_symbol(m_scope_stack[i], str)) return true;
-    }
-    return false;
+bool Checker::locate_symbol(const Str& str) {
+    return locate_symbol(scope(), str);
 }
 
 ErrorOr<CheckedExpr *> Checker::expression(Expr *expr) {
@@ -49,12 +80,16 @@ ErrorOr<CheckedExpr *> Checker::expression(Expr *expr) {
         case Expr::Kind::Id: {
             auto id = std::get<ExprDetails::Id *>(expr->var);
             if (locate_symbol(id->id.value))
-                return new CheckedExprDetails::CheckedIdExpr(id->id.value);
-            return error(id->id.span, "unknown symbol '", id->id.value, "'");
-        } break;
-        case Expr::Kind::Int:
+                return new CheckedExprDetails::CheckedId(id->id.value);
+            return error(id->id.span, "unknown symbol `", id->id.value, "`");
+        }
+        case Expr::Kind::Int: {
+            auto int_ = std::get<ExprDetails::Int *>(expr->var);
+            return new CheckedExprDetails::CheckedInt(int_->value);
+        }
         case Expr::Kind::String:
-        case Expr::Kind::Call: break;
+        case Expr::Kind::Call:
+            UNIMPLEMENTED;
     }
 
     return nullptr;
@@ -65,15 +100,22 @@ ErrorOr<::Type> Checker::type(::Type *ty) {
     return *ty;
 }
 
+Scope *Checker::scope() const {
+    return m_scope_stack.at(m_scope_stack.size() - 1);
+}
+
 void Checker::begin_scope() {
-    auto *scope = new Scope;
-    scope->id = m_next_scope_id++;
-    scope->parent_id = m_scope_stack.size() - 1;
-    m_scope_stack.insert({scope->id, scope});
+    Scope *scope = new Scope{m_next_scope_id++, 0, {}};
+    if (m_scope_stack.empty()) {
+        scope->parent_id = 0;
+    } else {
+        scope->parent_id = m_scope_stack.at(m_scope_stack.size() - 1)->id;
+    }
+    m_scope_stack[scope->id] = scope;
 }
 
 void Checker::end_scope() {
-    auto *scope = m_scope_stack[m_scope_stack.size() - 1];
+    Scope *scope = m_scope_stack.at(m_scope_stack.size() - 1);
     m_scope_stack.erase(scope->id);
     delete scope;
 }

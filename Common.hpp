@@ -58,3 +58,11 @@ private:
         __temp_val.value();       \
     })
 
+#define PANIC(msg, ...) panic(__FILE__, __LINE__, msg, ##__VA_ARGS__)
+#define UNIMPLEMENTED PANIC("unimplemented: %s", __PRETTY_FUNCTION__)
+
+[[noreturn]] void panic(const char *file, usz line, const char *fmt, ...);
+
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((b) < (a) ? (a) : (b))
+#define CLAMP(x, a, b) (MAX(MIN((x), (b)), (a)))

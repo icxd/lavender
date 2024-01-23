@@ -14,4 +14,8 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
 
-using namespace llvm;
+static llvm::LLVMContext s_context;
+static llvm::IRBuilder<> s_builder(s_context);
+static Unique<llvm::Module> s_module;
+static Map<Str, llvm::Value *> s_named_values;
+static usz str_count = 0;

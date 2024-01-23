@@ -1,4 +1,5 @@
 #include "Common.hpp"
+#include "Checker.hpp"
 #include "Parser.hpp"
 #include "Token.hpp"
 #include "Tokenizer.hpp"
@@ -55,17 +56,32 @@ int main(int argc, char *argv[]) {
     }
 
     Parser parser(tokens);
-    auto stmts = parser.parse();
-    Vec<Stmt *> statements = stmts.unwrap_or([&](const Error& error) {
+    ErrorOr<Vec<Stmt *>> stmts = parser.parse();
+    if (not stmts.has_value()) {
+        Error error = stmts.error();
         auto &span = error.span;
 
         std::cout << "\033[1m" << span.filename << ":" << span.line << ":"
                   << span.column << ": \033[31merror: \033[0m" << error.message
                   << "\n";
-    });
+        return 1;
+    }
+    auto statements = stmts.value();
 
     AstPrinter printer{};
     printer.print(statements);
+
+    Checker checker;
+    ErrorOr<Void> checker_result = checker.check(statements);
+    if (not stmts.has_value()) {
+        Error error = stmts.error();
+        auto &span = error.span;
+
+        std::cout << "\033[1m" << span.filename << ":" << span.line << ":"
+                  << span.column << ": \033[31merror: \033[0m" << error.message
+                  << "\n";
+        return 1;
+    }
 
     return 0;
 }

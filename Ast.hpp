@@ -8,7 +8,7 @@ struct Type;
 
 struct Field {
     Type *type;
-    Str id;
+    SpannedStr id;
     Opt<::Expr *> value;
 };
 
@@ -17,20 +17,20 @@ template <typename T> struct Block { Vec<T> elems; };
 namespace StmtDetails {
 
 struct Object {
-    Str id;
-    Opt<Str> parent;
-    Vec<Str> implements;
+    SpannedStr id;
+    Opt<SpannedStr> parent;
+    Vec<SpannedStr> implements;
     Vec<Field> fields;
 };
 
 struct VarDecl {
     Type *type;
-    Str id;
+    SpannedStr id;
     ::Expr *expr;
 };
 
 struct FunDecl {
-    Str id;
+    SpannedStr id;
     Vec<Field> parameters;
     Opt<Type *> ret_type;
     Block<Stmt *> body;
@@ -42,6 +42,8 @@ struct Expr { ::Expr *expr; };
 } // namespace StmtDetails
 
 struct Stmt {
+    enum class Kind { Object, Fun, Var, Return, Expr };
+
     Var<
             StmtDetails::Object *,
             StmtDetails::FunDecl *,
@@ -50,20 +52,37 @@ struct Stmt {
             StmtDetails::Expr *> var;
 };
 
+struct Argument {
+    Opt<SpannedStr> id;
+    ::Expr *expr;
+};
+
 namespace ExprDetails {
 
+struct Id { SpannedStr id; };
 struct Int { int value; };
-struct String { Str value; };
+struct String { SpannedStr value; };
+struct Call {
+    ::Expr *callee;
+    Vec<Argument> arguments;
+};
 
 } // namespace ExprDetails
 
 struct Expr {
-    Var<ExprDetails::Int *, ExprDetails::String *> var;
+    enum class Kind { Id, Int, String, Call };
+
+    Var<
+            ExprDetails::Id *,
+            ExprDetails::Int *,
+            ExprDetails::String *,
+            ExprDetails::Call *> var;
 };
 
 struct Type {
-    enum class Kind { Str, Int, Array };
+    enum class Kind { Id, Str, Int, Array };
     Kind type;
+    SpannedStr id;
     Type *subtype; // only for array
 };
 

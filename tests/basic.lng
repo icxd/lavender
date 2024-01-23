@@ -6,9 +6,9 @@ object Developer > Person:
     int lines_of_code = 0
 
 fun main([str] args) > int:
-//     Person me = Developer(
-//         name: "John Doe"
-//         age: 42
-//         lines_of_code: 10000
-//     )
+    Person me = Developer(
+        name: "John Doe",
+        age: 42,
+        lines_of_code: 1_000_000
+    )
     return 0

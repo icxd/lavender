@@ -5,18 +5,31 @@
 #include <variant>
 #include <vector>
 #include <functional>
+#include <map>
+#include <memory>
 
 using usz = unsigned long;
 
 using Str = std::string;
 template <typename T> using Opt = std::optional<T>;
 template <typename T> using Vec = std::vector<T>;
+template <typename T> using Unique = std::unique_ptr<T>;
 template <typename... Args> using Var = std::variant<Args...>;
+template <typename T, typename U> using Map = std::map<T, U>;
+
+struct Void {};
 
 struct Span {
     const char *filename;
     usz line, column, length;
 };
+
+template <typename T> struct Spanned {
+    T value;
+    Span span;
+};
+
+using SpannedStr = Spanned<Str>;
 
 struct Error {
     Str message;
@@ -33,11 +46,6 @@ public:
     T value() const { return std::get<T>(m_result_or_error); }
     [[nodiscard]] Error error() const { return std::get<Error>(m_result_or_error); }
 
-    T unwrap_or(const std::function<void(Error error)>& fn) const {
-        if (not has_value()) fn(error());
-        return value();
-    }
-
 private:
     bool m_has_value;
     Var<T, Error> m_result_or_error;
@@ -47,5 +55,6 @@ private:
     ({              \
         auto __temp_val = (expr); \
         if (not __temp_val.has_value()) return __temp_val.error(); \
-        __temp_val.value();               \
+        __temp_val.value();       \
     })
+

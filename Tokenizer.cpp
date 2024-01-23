@@ -271,8 +271,8 @@ TokenizeResult tokenize(const char *filename, Str source) {
                         }
                     }
 
-                    while (std::isdigit(source[pos])) {
-                        value.push_back(source[pos]);
+                    while (std::isdigit(source[pos]) or source[pos] == '_') {
+                        if (source[pos] != '_') value.push_back(source[pos]);
                         pos++;
                         column++;
                     }

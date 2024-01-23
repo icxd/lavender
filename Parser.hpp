@@ -20,6 +20,7 @@ class Parser {
 
     ErrorOr<Expr *> expr();
     ErrorOr<Expr *> primary();
+    ErrorOr<Expr *> postfix(Expr *);
 
     ErrorOr<Type *> type();
 

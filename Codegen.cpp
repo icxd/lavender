@@ -1,5 +1,6 @@
 #include "Common.hpp"
 #include "Codegen.hpp"
+#include "Checker.hpp"
 #include <iostream>
 #include <sstream>
 

@@ -83,6 +83,6 @@ private:
     template <typename... Args> Error error(const Span &, Args...);
 
 private:
-    Map<ScopeId, Scope *> m_scopes;
-    ScopeId m_next_scope_id;
+    Map<ScopeId, Scope *> m_scope_stack{};
+    ScopeId m_next_scope_id = 0;
 };

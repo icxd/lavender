@@ -2,15 +2,15 @@
 #include <sstream>
 
 Checker::Checker() noexcept {
-    m_scopes = {};
-    m_scopes.insert({0, new Scope});
-    m_next_scope_id = m_scopes.size();
+    m_scope_stack = {};
+    m_scope_stack.insert({0, new Scope});
+    m_next_scope_id = m_scope_stack.size();
 }
 
 ErrorOr<Void> Checker::check(const Vec<Stmt *>& stmts) {
     for (Stmt *stmt : stmts) {
         if (stmt == nullptr) continue;
-        try$(statement(stmt));
+        CheckedStmt *checked_stmt = try$(statement(stmt));
     }
 
     return Void{};
@@ -38,13 +38,19 @@ bool Checker::locate_symbol(Scope *scope, Str str) {
 }
 
 bool Checker::locate_symbol(Str str) {
+    for (usz i = m_scope_stack.size() - 1; i >= 0; --i) {
+        if (locate_symbol(m_scope_stack[i], str)) return true;
+    }
+    return false;
 }
 
 ErrorOr<CheckedExpr *> Checker::expression(Expr *expr) {
     switch (static_cast<Expr::Kind>(expr->var.index())) {
         case Expr::Kind::Id: {
             auto id = std::get<ExprDetails::Id *>(expr->var);
-            if (locate_symbol(id->id.value)) {}
+            if (locate_symbol(id->id.value))
+                return new CheckedExprDetails::CheckedIdExpr(id->id.value);
+            return error(id->id.span, "unknown symbol '", id->id.value, "'");
         } break;
         case Expr::Kind::Int:
         case Expr::Kind::String:
@@ -60,10 +66,16 @@ ErrorOr<::Type> Checker::type(::Type *ty) {
 }
 
 void Checker::begin_scope() {
-
+    auto *scope = new Scope;
+    scope->id = m_next_scope_id++;
+    scope->parent_id = m_scope_stack.size() - 1;
+    m_scope_stack.insert({scope->id, scope});
 }
 
 void Checker::end_scope() {
+    auto *scope = m_scope_stack[m_scope_stack.size() - 1];
+    m_scope_stack.erase(scope->id);
+    delete scope;
 }
 
 template <typename... Args> Error Checker::error(const Span &span, Args... args) {

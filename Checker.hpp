@@ -3,6 +3,7 @@
 #include <llvm/IR/Value.h>
 
 #include <utility>
+#include <llvm/IR/Constants.h>
 #include "Common.hpp"
 #include "Ast.hpp"
 
@@ -53,7 +54,7 @@ namespace CheckedStmtDetails {
             : m_id(std::move(id)), m_fields(fields) {}
 
         [[nodiscard]] Type type() const override { return Type::Object; }
-        [[nodiscard]] llvm::Value *generate();
+        [[nodiscard]] llvm::Constant *generate();
     };
 
     class CheckedFun : public CheckedStmt {

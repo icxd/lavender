@@ -2,11 +2,11 @@
 #include <sstream>
 #include <iostream>
 
-ErrorOr<Vec<Stmt *>> Parser::parse() {
-    Vec<Stmt *> stmts{};
+ErrorOr<Vec<Statement *>> Parser::parse() {
+    Vec<Statement *> stmts{};
     while (not is(Token::Type::Eof) and not is(Token::Type::Eof)) {
         if (is(Token::Type::Newline)) { advance(); continue; }
-        Stmt *s = try$(stmt());
+        Statement *s = try$(stmt());
         if (s == nullptr)
             return error("statement is null, most likely a compiler bug.");
         stmts.push_back(s);
@@ -14,7 +14,7 @@ ErrorOr<Vec<Stmt *>> Parser::parse() {
     return stmts;
 }
 
-ErrorOr<Stmt *> Parser::stmt() {
+ErrorOr<Statement *> Parser::stmt() {
     switch (current().type) {
         case Token::Type::Object: return try$(object());
         case Token::Type::Fun: return try$(fun());
@@ -23,7 +23,7 @@ ErrorOr<Stmt *> Parser::stmt() {
     }
 }
 
-ErrorOr<Stmt *> Parser::object() {
+ErrorOr<Statement *> Parser::object() {
     try$(expect(Token::Type::Object));
     try$(expect(Token::Type::Id));
     SpannedStr id = SpannedStr{previous().value.value(), previous().span};
@@ -45,12 +45,12 @@ ErrorOr<Stmt *> Parser::object() {
     }
     try$(expect(Token::Type::Dedent));
 
-    return new Stmt{
-        .var = new StmtDetails::Object{id, parent, {}, fields}
+    return new Statement{
+        .var = new StatementDetails::Object{id, parent, {}, fields}
     };
 }
 
-ErrorOr<Stmt *> Parser::fun() {
+ErrorOr<Statement *> Parser::fun() {
     try$(expect(Token::Type::Fun));
     try$(expect(Token::Type::Id));
     SpannedStr id = SpannedStr{previous().value.value(), previous().span};
@@ -73,49 +73,49 @@ ErrorOr<Stmt *> Parser::fun() {
         ret_type = std::make_optional(try$(type()));
     }
 
-    Block<ErrorOr<Stmt *>> raw_body = try$(block<ErrorOr<Stmt *>>([&] { return stmt(); }));
-    Vec<Stmt *> stmts{};
+    Block<ErrorOr<Statement *>> raw_body = try$(block<ErrorOr<Statement *>>([&] { return stmt(); }));
+    Vec<Statement *> stmts{};
     for (const auto& stmt : raw_body.elems) {
         stmts.push_back(try$(stmt));
     }
 
-    return new Stmt{
-        .var = new StmtDetails::FunDecl{ id, parameters, ret_type, Block<Stmt *>{stmts} }
+    return new Statement{
+        .var = new StatementDetails::FunDecl{id, parameters, ret_type, Block<Statement *>{stmts} }
     };
 }
 
-ErrorOr<Stmt *> Parser::ret() {
+ErrorOr<Statement *> Parser::ret() {
     try$(expect(Token::Type::Return));
-    Opt<Expr *> value = std::make_optional(try$(expr()));
-    return new Stmt{ .var = new StmtDetails::Return{value} };
+    Opt<Expression *> value = std::make_optional(try$(expr()));
+    return new Statement{ .var = new StatementDetails::Return{value} };
 }
 
-ErrorOr<Stmt *> Parser::var() {
+ErrorOr<Statement *> Parser::var() {
     Type *ty = try$(type());
     try$(expect(Token::Type::Id));
     SpannedStr id = Spanned{previous().value.value(), previous().span};
     try$(expect(Token::Type::Equals));
-    Expr *ex = try$(expr());
-    return new Stmt{ .var = new StmtDetails::VarDecl{ty, id, ex} };
+    Expression *ex = try$(expr());
+    return new Statement{ .var = new StatementDetails::VarDecl{ty, id, ex} };
 }
 
-ErrorOr<Expr *> Parser::expr() {return primary();}
-ErrorOr<Expr *> Parser::primary() {
-    Expr *expression;
+ErrorOr<Expression *> Parser::expr() {return primary();}
+ErrorOr<Expression *> Parser::primary() {
+    Expression *expression;
     switch (current().type) {
         case Token::Type::Id: {
             try$(expect(Token::Type::Id));
-            expression = new Expr{.var = new ExprDetails::Id{previous().value.value()}};
+            expression = new Expression{.var = new ExpressionDetails::Id{previous().value.value()}};
         } break;
         case Token::Type::Int: {
             int value = std::stoi(current().value.value());
             try$(expect(Token::Type::Int));
-            expression = new Expr{.var = new ExprDetails::Int{value}};
+            expression = new Expression{.var = new ExpressionDetails::Int{value}};
         } break;
         case Token::Type::String: {
             Str value = current().value.value();
             try$(expect(Token::Type::String));
-            expression = new Expr{.var = new ExprDetails::String{value}};
+            expression = new Expression{.var = new ExpressionDetails::String{value}};
         } break;
         default:
             return error("expected an expression (such as an integer or a string) but got ", Token::repr(current().type), " instead");
@@ -123,7 +123,7 @@ ErrorOr<Expr *> Parser::primary() {
     return postfix(expression);
 }
 
-ErrorOr<Expr *> Parser::postfix(Expr *expression) {
+ErrorOr<Expression *> Parser::postfix(Expression *expression) {
     switch (current().type) {
         case Token::Type::OpenParen: {
             advance();
@@ -135,13 +135,13 @@ ErrorOr<Expr *> Parser::postfix(Expr *expression) {
                     id = std::make_optional(SpannedStr{previous().value.value(), previous().span});
                     try$(expect(Token::Type::Colon));
                 }
-                Expr *ex = try$(expr());
+                Expression *ex = try$(expr());
                 args.push_back({id, ex});
                 if (not is(Token::Type::CloseParen))
                     try$(expect(Token::Type::Comma));
             }
             try$(expect(Token::Type::CloseParen));
-            return postfix(new Expr{.var = new ExprDetails::Call{expression, args}});
+            return postfix(new Expression{.var = new ExpressionDetails::Call{expression, args}});
         }
         default:
             return expression;
@@ -170,10 +170,10 @@ ErrorOr<Field> Parser::field() {
     try$(expect(Token::Type::Id));
     Span span = previous().span;
     Str id = previous().value.value();
-    Opt<Expr *> value = {};
+    Opt<Expression *> value = {};
     if (is(Token::Type::Equals)) {
         try$(expect(Token::Type::Equals));
-        Expr *e = try$(expr());
+        Expression *e = try$(expr());
         if (e == nullptr) return Field{ty, id, {}};
         value = std::make_optional(e);
     }

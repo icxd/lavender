@@ -17,12 +17,17 @@
     X(Object, "object")                                                        \
     X(Fun, "fun")                                                              \
     X(Return, "return")                                                        \
+    X(Switch, "switch")                                                        \
+    X(Case, "case")                                                            \
+    X(Default, "default")                                                      \
                                                                                \
     X(StrType, "str")                                                          \
     X(IntType, "int")                                                          \
                                                                                \
+    X(Minus, "-")                                                              \
     X(Equals, "=")                                                             \
     X(GreaterThan, ">")                                                        \
+    X(LessThan, "<")                                                           \
                                                                                \
     X(OpenParen, "(")                                                          \
     X(CloseParen, ")")                                                         \
@@ -32,6 +37,7 @@
     X(Comma, ",")                                                              \
     X(Dot, ".")                                                                \
     X(Range, "..")                                                             \
+    X(Arrow, "->")                                                             \
                                                                                \
     X(Indent, "indent")                                                        \
     X(Dedent, "dedent")                                                        \

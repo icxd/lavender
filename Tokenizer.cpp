@@ -3,33 +3,40 @@
 
 static Token::Type ident_type(Str s) {
     switch (s[0]) {
-    case 'e':
-        if (s == "else") return Token::Type::Else;
-        if (s == "elif") return Token::Type::Elif;
-        break;
-    case 'f':
-        if (s == "false") return Token::Type::False;
-        if (s == "fun") return Token::Type::Fun;
-        break;
-    case 'g':
-        if (s == "guard") return Token::Type::Guard;
-        break;
-    case 'i':
-        if (s == "if") return Token::Type::If;
-        if (s == "int") return Token::Type::IntType;
-        break;
-    case 'o':
-        if (s == "object") return Token::Type::Object;
-        break;
-    case 'r':
-        if (s == "return") return Token::Type::Return;
-        break;
-    case 's':
-        if (s == "str") return Token::Type::StrType;
-        break;
-    case 't':
-        if (s == "true") return Token::Type::True;
-        break;
+        case 'c':
+            if (s == "case") return Token::Type::Case;
+            break;
+        case 'd':
+            if (s == "default") return Token::Type::Default;
+            break;
+        case 'e':
+            if (s == "else") return Token::Type::Else;
+            if (s == "elif") return Token::Type::Elif;
+            break;
+        case 'f':
+            if (s == "false") return Token::Type::False;
+            if (s == "fun") return Token::Type::Fun;
+            break;
+        case 'g':
+            if (s == "guard") return Token::Type::Guard;
+            break;
+        case 'i':
+            if (s == "if") return Token::Type::If;
+            if (s == "int") return Token::Type::IntType;
+            break;
+        case 'o':
+            if (s == "object") return Token::Type::Object;
+            break;
+        case 'r':
+            if (s == "return") return Token::Type::Return;
+            break;
+        case 's':
+            if (s == "str") return Token::Type::StrType;
+            if (s == "switch") return Token::Type::Switch;
+            break;
+        case 't':
+            if (s == "true") return Token::Type::True;
+            break;
     }
     return Token::Type::Id;
 }
@@ -97,6 +104,16 @@ TokenizeResult tokenize(const char *filename, Str source) {
                 }
                 break;
 
+            case '-':
+                advance();
+                if (pos < source.length() && source[pos] == '>') {
+                    advance();
+                    tokens.push_back(Token{Token::Type::Arrow, {}, make_span(2)});
+                } else {
+                    tokens.push_back(Token{Token::Type::Minus, {}, make_span()});
+                }
+                break;
+
             case '=':
                 advance();
                 tokens.push_back(Token{Token::Type::Equals, {}, make_span()});
@@ -105,6 +122,11 @@ TokenizeResult tokenize(const char *filename, Str source) {
             case '>':
                 advance();
                 tokens.push_back(Token{Token::Type::GreaterThan, {}, make_span()});
+                break;
+
+            case '<':
+                advance();
+                tokens.push_back(Token{Token::Type::LessThan, {}, make_span()});
                 break;
 
             case '(':
@@ -240,7 +262,7 @@ TokenizeResult tokenize(const char *filename, Str source) {
                     continue;
                 }
                 if (std::isdigit(source[pos])) {
-                    Str value{""};
+                    Str value;
                     bool is_float = false;
 
                     if (source[pos] == '0' && pos + 1 < source.length()) {

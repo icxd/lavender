@@ -2,19 +2,20 @@
 
 #include "Common.hpp"
 
-struct Stmt;
-struct Expr;
+struct Statement;
+struct Expression;
 struct Type;
+struct Pattern;
 
 struct Field {
     Type *type;
     SpannedStr id;
-    Opt<::Expr *> value;
+    Opt<::Expression *> value;
 };
 
 template <typename T> struct Block { Vec<T> elems; };
 
-namespace StmtDetails {
+namespace StatementDetails {
 
 struct Object {
     SpannedStr id;
@@ -26,73 +27,88 @@ struct Object {
 struct VarDecl {
     Type *type;
     SpannedStr id;
-    ::Expr *expr;
+    ::Expression *expr;
 };
 
 struct FunDecl {
     SpannedStr id;
     Vec<Field> parameters;
     Opt<Type *> ret_type;
-    Block<Stmt *> body;
+    Block<Statement *> body;
 };
 
-struct Return { Opt<::Expr *> value; };
-struct Expr { ::Expr *expr; };
+struct Return { Opt<::Expression *> value; };
+struct Expression { ::Expression *expr; };
 
-} // namespace StmtDetails
+} // namespace StatementDetails
 
-struct Stmt {
+struct Statement {
     enum class Kind { Object, Fun, Var, Return, Expr };
 
     Var<
-            StmtDetails::Object *,
-            StmtDetails::FunDecl *,
-            StmtDetails::VarDecl *,
-            StmtDetails::Return *,
-            StmtDetails::Expr *> var;
+            StatementDetails::Object *,
+            StatementDetails::FunDecl *,
+            StatementDetails::VarDecl *,
+            StatementDetails::Return *,
+            StatementDetails::Expression *> var;
 };
 
 struct Argument {
     Opt<SpannedStr> id;
-    ::Expr *expr;
+    ::Expression *expr;
 };
 
-namespace ExprDetails {
+namespace ExpressionDetails {
 
 struct Id { SpannedStr id; };
 struct Int { int value; };
 struct String { SpannedStr value; };
 struct Call {
-    ::Expr *callee;
+    ::Expression *callee;
     Vec<Argument> arguments;
 };
 
-} // namespace ExprDetails
+} // namespace ExpressionDetails
 
-struct Expr {
+struct Expression {
     enum class Kind { Id, Int, String, Call };
 
     Var<
-            ExprDetails::Id *,
-            ExprDetails::Int *,
-            ExprDetails::String *,
-            ExprDetails::Call *> var;
+            ExpressionDetails::Id *,
+            ExpressionDetails::Int *,
+            ExpressionDetails::String *,
+            ExpressionDetails::Call *> var;
 };
 
 struct Type {
     enum class Kind { Id, Str, Int, Array };
     Kind type;
     SpannedStr id;
-    Type *subtype; // only for array
+    Type *subtype{}; // only for array
+};
+
+namespace PatternDetails {
+
+    struct Expression { ::Expression *expr; };
+    struct Range { ::Expression *from, *to; };
+
+} // namespace PatternDetails
+
+struct Pattern {
+    enum class Kind { Expression, Range, };
+
+    Var<
+            PatternDetails::Expression *,
+            PatternDetails::Range *> var;
 };
 
 class AstPrinter {
 public:
-    void print(const Vec<Stmt *>&);
+    void print(const Vec<Statement *>&);
 
 private:
-    static void statement(Stmt *);
-    static void expression(Expr *);
+    static void statement(Statement *);
+    static void expression(Expression *);
     static Str type(Type *);
     static void field(Field);
 };

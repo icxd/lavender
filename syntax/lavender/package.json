@@ -1,0 +1,29 @@
+{
+  "name": "lavender",
+  "displayName": "lavender",
+  "description": "",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "contributes": {
+    "languages": [{
+      "id": "lavender",
+      "aliases": ["Lavender", "lavender"],
+      "extensions": [".lav",".lavender"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "lavender",
+      "scopeName": "",
+      "path": "./syntaxes/lavender.tmLanguage.json"
+    }]
+  }
+}

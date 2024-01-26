@@ -10,17 +10,17 @@ class Parser {
   public:
     explicit Parser(Vec<Token> tokens) : m_tokens(std::move(tokens)), m_errors({}), m_pos(0) {}
 
-    ErrorOr<Vec<Stmt *>> parse();
+    ErrorOr<Vec<Statement *>> parse();
 
-    ErrorOr<Stmt *> stmt();
-    ErrorOr<Stmt *> object();
-    ErrorOr<Stmt *> fun();
-    ErrorOr<Stmt *> ret();
-    ErrorOr<Stmt *> var();
+    ErrorOr<Statement *> stmt();
+    ErrorOr<Statement *> object();
+    ErrorOr<Statement *> fun();
+    ErrorOr<Statement *> ret();
+    ErrorOr<Statement *> var();
 
-    ErrorOr<Expr *> expr();
-    ErrorOr<Expr *> primary();
-    ErrorOr<Expr *> postfix(Expr *);
+    ErrorOr<Expression *> expr();
+    ErrorOr<Expression *> primary();
+    ErrorOr<Expression *> postfix(Expression *);
 
     ErrorOr<Type *> type();
 

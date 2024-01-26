@@ -3,12 +3,9 @@
 #include "Parser.hpp"
 #include "Token.hpp"
 #include "Tokenizer.hpp"
-#include "Codegen.hpp"
 #include <fstream>
 #include <iostream>
 #include <sstream>
-
-extern Unique<llvm::Module> s_module;
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -59,7 +56,7 @@ int main(int argc, char *argv[]) {
     }
 
     Parser parser(tokens);
-    ErrorOr<Vec<Stmt *>> stmts = parser.parse();
+    ErrorOr<Vec<Statement *>> stmts = parser.parse();
     if (not stmts.has_value()) {
         Error error = stmts.error();
         auto &span = error.span;
@@ -85,21 +82,6 @@ int main(int argc, char *argv[]) {
                   << "\n";
         return 1;
     }
-
-    s_module = std::make_unique<llvm::Module>("main", s_context);
-
-    for (auto &stmt : checker_result.value()) {
-        switch (stmt->type()) {
-        case CheckedStmt::Type::Object: {
-            auto object = dynamic_cast<CheckedStmtDetails::CheckedObject *>(stmt)->generate();
-            s_module->getOrInsertGlobal(object->getName(), object->getType());
-        } break;
-        case CheckedStmt::Type::Fun: {
-        } break;
-        }
-    }
-
-    s_module->print(llvm::outs(), nullptr);
 
     return 0;
 }

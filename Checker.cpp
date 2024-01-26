@@ -8,9 +8,9 @@ Checker::Checker() noexcept {
     begin_scope();
 }
 
-ErrorOr<Vec<CheckedStmt *>> Checker::check(const Vec<Stmt *>& stmts) {
+ErrorOr<Vec<CheckedStmt *>> Checker::check(const Vec<Statement *>& stmts) {
     Vec<CheckedStmt *> checked_stmts;
-    for (Stmt *stmt : stmts) {
+    for (Statement *stmt : stmts) {
         if (stmt == nullptr) continue;
         CheckedStmt *checked_stmt = try$(statement(stmt));
         if (checked_stmt == nullptr)
@@ -20,10 +20,10 @@ ErrorOr<Vec<CheckedStmt *>> Checker::check(const Vec<Stmt *>& stmts) {
     return checked_stmts;
 }
 
-ErrorOr<CheckedStmt *> Checker::statement(Stmt *stmt) {
-    switch (static_cast<Stmt::Kind>(stmt->var.index())) {
-        case Stmt::Kind::Object: {
-            StmtDetails::Object *object = std::get<StmtDetails::Object *>(stmt->var);
+ErrorOr<CheckedStmt *> Checker::statement(Statement *stmt) {
+    switch (static_cast<Statement::Kind>(stmt->var.index())) {
+        case Statement::Kind::Object: {
+            StatementDetails::Object *object = std::get<StatementDetails::Object *>(stmt->var);
             if (locate_symbol(object->id.value))
                 return error(object->id.span, "redefinition of symbol `", object->id.value, "`");
             scope()->symbols.push_back(object->id.value);
@@ -44,17 +44,17 @@ ErrorOr<CheckedStmt *> Checker::statement(Stmt *stmt) {
 
             return new CheckedStmtDetails::CheckedObject(object->id.value, fields);
         }
-        case Stmt::Kind::Fun: {
-            StmtDetails::FunDecl *fun = std::get<StmtDetails::FunDecl *>(stmt->var);
+        case Statement::Kind::Fun: {
+            StatementDetails::FunDecl *fun = std::get<StatementDetails::FunDecl *>(stmt->var);
             if (locate_symbol(fun->id.value))
                 return error(fun->id.span, "redefinition of symbol `", fun->id.value, "`");
             scope()->symbols.push_back(fun->id.value);
 
             return new CheckedStmtDetails::CheckedFun(fun->id.value);
         }
-        case Stmt::Kind::Var:
-        case Stmt::Kind::Return:
-        case Stmt::Kind::Expr:
+        case Statement::Kind::Var:
+        case Statement::Kind::Return:
+        case Statement::Kind::Expr:
             UNIMPLEMENTED;
     }
 
@@ -75,20 +75,20 @@ bool Checker::locate_symbol(const Str& str) {
     return locate_symbol(scope(), str);
 }
 
-ErrorOr<CheckedExpr *> Checker::expression(Expr *expr) {
-    switch (static_cast<Expr::Kind>(expr->var.index())) {
-        case Expr::Kind::Id: {
-            auto id = std::get<ExprDetails::Id *>(expr->var);
+ErrorOr<CheckedExpr *> Checker::expression(Expression *expr) {
+    switch (static_cast<Expression::Kind>(expr->var.index())) {
+        case Expression::Kind::Id: {
+            auto id = std::get<ExpressionDetails::Id *>(expr->var);
             if (locate_symbol(id->id.value))
                 return new CheckedExprDetails::CheckedId(id->id.value);
             return error(id->id.span, "unknown symbol `", id->id.value, "`");
         }
-        case Expr::Kind::Int: {
-            auto int_ = std::get<ExprDetails::Int *>(expr->var);
+        case Expression::Kind::Int: {
+            auto int_ = std::get<ExpressionDetails::Int *>(expr->var);
             return new CheckedExprDetails::CheckedInt(int_->value);
         }
-        case Expr::Kind::String:
-        case Expr::Kind::Call:
+        case Expression::Kind::String:
+        case Expression::Kind::Call:
             UNIMPLEMENTED;
     }
 

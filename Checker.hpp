@@ -1,9 +1,6 @@
 #pragma once
 
-#include <llvm/IR/Value.h>
-
 #include <utility>
-#include <llvm/IR/Constants.h>
 #include "Common.hpp"
 #include "Ast.hpp"
 
@@ -29,8 +26,6 @@ class CheckedType {
 
 public:
     explicit CheckedType(Type type) : m_type(std::move(type)) {}
-
-    llvm::Type *generate();
 };
 
 class CheckedStmt {
@@ -54,7 +49,6 @@ namespace CheckedStmtDetails {
             : m_id(std::move(id)), m_fields(fields) {}
 
         [[nodiscard]] Type type() const override { return Type::Object; }
-        [[nodiscard]] llvm::Constant *generate();
     };
 
     class CheckedFun : public CheckedStmt {
@@ -65,7 +59,6 @@ namespace CheckedStmtDetails {
         explicit CheckedFun(Str id) : m_id(std::move(id)) {}
 
         [[nodiscard]] Type type() const override { return Type::Fun; }
-        [[nodiscard]] llvm::Function *generate();
     };
 
 }
@@ -73,7 +66,6 @@ namespace CheckedStmtDetails {
 class CheckedExpr {
 public:
     virtual ~CheckedExpr() = default;
-    virtual llvm::Value *generate() = 0;
 };
 
 namespace CheckedExprDetails {
@@ -83,7 +75,6 @@ namespace CheckedExprDetails {
 
     public:
         explicit CheckedId(Str id) : m_id(std::move(id)) {}
-        llvm::Value *generate() override;
     };
 
     class CheckedInt : public CheckedExpr {
@@ -91,7 +82,6 @@ namespace CheckedExprDetails {
 
     public:
         explicit CheckedInt(int value) : m_value(value) {}
-        llvm::Value *generate() override;
     };
 
     class CheckedString: public CheckedExpr {
@@ -99,7 +89,6 @@ namespace CheckedExprDetails {
 
     public:
         explicit CheckedString(Str value) : m_value(std::move(value)) {}
-        llvm::Value *generate() override;
     };
 
     class CheckedCall : public CheckedExpr {
@@ -109,7 +98,6 @@ namespace CheckedExprDetails {
     public:
         CheckedCall(Unique<CheckedExpr> callee, Vec<CheckedExpr> arguments)
                 : m_callee(std::move(callee)), m_arguments(std::move(arguments)) {}
-        llvm::Value *generate() override;
     };
 
 }
@@ -125,11 +113,11 @@ class Checker {
 public:
     Checker() noexcept;
 
-    ErrorOr<Vec<CheckedStmt *>> check(const Vec<Stmt *>&);
+    ErrorOr<Vec<CheckedStmt *>> check(const Vec<Statement *>&);
 
 private:
-    ErrorOr<CheckedStmt *> statement(Stmt *);
-    ErrorOr<CheckedExpr *> expression(Expr *);
+    ErrorOr<CheckedStmt *> statement(Statement *);
+    ErrorOr<CheckedExpr *> expression(Expression *);
     ErrorOr<::Type> type(::Type *);
 
     [[nodiscard]] Scope *scope() const;

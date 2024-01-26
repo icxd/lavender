@@ -3,7 +3,7 @@
 #include "Ast.hpp"
 #include "Common.hpp"
 
-void AstPrinter::print(const Vec<Stmt *>& stmts) {
+void AstPrinter::print(const Vec<Statement *>& stmts) {
     for (auto stmt : stmts) {
         statement(stmt);
         std::cout << "\n";
@@ -19,9 +19,9 @@ void AstPrinter::field(Field field) {
     std::cout << "\n";
 }
 
-void AstPrinter::statement(Stmt *stmt) {
+void AstPrinter::statement(Statement *stmt) {
     struct Visitor {
-        void operator()(const StmtDetails::Object *object) const {
+        void operator()(const StatementDetails::Object *object) const {
             std::cout << "object " << object->id.value;
             if (object->parent.has_value())
                 std::cout << " > " << object->parent.value().value;
@@ -32,7 +32,7 @@ void AstPrinter::statement(Stmt *stmt) {
             }
         }
 
-        void operator()(const StmtDetails::FunDecl *fun) const {
+        void operator()(const StatementDetails::FunDecl *fun) const {
             std::cout << "fun " << fun->id.value << "(";
             for (usz i = 0; i < fun->parameters.size(); ++i) {
                 auto& param = fun->parameters[i];
@@ -50,20 +50,20 @@ void AstPrinter::statement(Stmt *stmt) {
             }
         }
 
-        void operator()(const StmtDetails::VarDecl *var) const {
+        void operator()(const StatementDetails::VarDecl *var) const {
             std::cout << "var " << type(var->type) << " " << var->id.value << " = ";
             expression(var->expr);
             std::cout << "\n";
         }
 
-        void operator()(const StmtDetails::Return *ret) const {
+        void operator()(const StatementDetails::Return *ret) const {
             std::cout << "return ";
             if (ret->value.has_value())
                 expression(ret->value.value());
             std::cout << "\n";
         }
 
-        void operator()(const StmtDetails::Expr *expr) const {
+        void operator()(const StatementDetails::Expression *expr) const {
             expression(expr->expr);
             std::cout << "\n";
         }
@@ -72,21 +72,21 @@ void AstPrinter::statement(Stmt *stmt) {
     std::visit(Visitor{}, stmt->var);
 }
 
-void AstPrinter::expression(Expr *expr) {
+void AstPrinter::expression(Expression *expr) {
     struct Visitor {
-        void operator()(const ExprDetails::Id *id) const {
+        void operator()(const ExpressionDetails::Id *id) const {
             std::cout << id->id.value;
         }
 
-        void operator()(const ExprDetails::Int *integer) const {
+        void operator()(const ExpressionDetails::Int *integer) const {
             std::cout << std::to_string(integer->value);
         }
 
-        void operator()(const ExprDetails::String *string) const {
+        void operator()(const ExpressionDetails::String *string) const {
             std::cout << string->value.value;
         }
 
-        void operator()(const ExprDetails::Call *call) const {
+        void operator()(const ExpressionDetails::Call *call) const {
             expression(call->callee);
             std::cout << "(";
             for (usz i = 0; i < call->arguments.size(); ++i) {

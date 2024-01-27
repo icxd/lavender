@@ -17,28 +17,28 @@ template <typename T> struct Block { Vec<T> elems; };
 
 namespace StatementDetails {
 
-struct Object {
-    SpannedStr id;
-    Opt<SpannedStr> parent;
-    Vec<SpannedStr> implements;
-    Vec<Field> fields;
-};
+    struct Object {
+        SpannedStr id;
+        Opt<SpannedStr> parent;
+        Vec<SpannedStr> implements;
+        Vec<Field> fields;
+    };
 
-struct VarDecl {
-    Type *type;
-    SpannedStr id;
-    ::Expression *expr;
-};
+    struct VarDecl {
+        Type *type;
+        SpannedStr id;
+        ::Expression *expr;
+    };
 
-struct FunDecl {
-    SpannedStr id;
-    Vec<Field> parameters;
-    Opt<Type *> ret_type;
-    Block<Statement *> body;
-};
+    struct FunDecl {
+        SpannedStr id;
+        Vec<Field> parameters;
+        Opt<Type *> ret_type;
+        Block<Statement *> body;
+    };
 
-struct Return { Opt<::Expression *> value; };
-struct Expression { ::Expression *expr; };
+    struct Return { Opt<::Expression *> value; };
+    struct Expression { ::Expression *expr; };
 
 } // namespace StatementDetails
 
@@ -60,13 +60,19 @@ struct Argument {
 
 namespace ExpressionDetails {
 
-struct Id { SpannedStr id; };
-struct Int { int value; };
-struct String { SpannedStr value; };
-struct Call {
-    ::Expression *callee;
-    Vec<Argument> arguments;
-};
+    struct Id { SpannedStr id; };
+    struct Int { int value; };
+    struct String { SpannedStr value; };
+    struct Call {
+        ::Expression *callee;
+        Vec<Argument> arguments;
+    };
+
+    struct Switch {
+        ::Expression *condition;
+        Vec<Pattern *> patterns;
+        Pattern *default_pattern;
+    };
 
 } // namespace ExpressionDetails
 
@@ -89,17 +95,20 @@ struct Type {
 
 namespace PatternDetails {
 
+    struct Wildcard { };
     struct Expression { ::Expression *expr; };
-    struct Range { ::Expression *from, *to; };
+    struct Range { ::Expression *from, *to; bool inclusive; };
 
 } // namespace PatternDetails
 
 struct Pattern {
-    enum class Kind { Expression, Range, };
+    enum class Kind { Wildcard, Expression, Range, };
 
     Var<
+            PatternDetails::Wildcard *,
             PatternDetails::Expression *,
             PatternDetails::Range *> var;
+    ::Expression *body;
 };
 
 class AstPrinter {

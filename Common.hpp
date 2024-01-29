@@ -16,6 +16,7 @@ template <typename T> using Vec = std::vector<T>;
 template <typename T> using Unique = std::unique_ptr<T>;
 template <typename... Args> using Var = std::variant<Args...>;
 template <typename T, typename U> using Map = std::map<T, U>;
+template <typename T> using Fn = std::function<T>;
 
 struct Void {};
 
@@ -62,7 +63,3 @@ private:
 #define UNIMPLEMENTED PANIC("unimplemented: %s", __PRETTY_FUNCTION__)
 
 [[noreturn]] void panic(const char *file, usz line, const char *fmt, ...);
-
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MAX(a, b) ((b) < (a) ? (a) : (b))
-#define CLAMP(x, a, b) (MAX(MIN((x), (b)), (a)))

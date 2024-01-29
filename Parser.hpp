@@ -26,20 +26,23 @@ class Parser {
 
     ErrorOr<Field> field();
 
-    template <typename T> ErrorOr<Block<T>> block(std::function<T()>);
+    ErrorOr<Pattern *> pattern();
+    ErrorOr<PatternCondition> pattern_condition();
 
-    [[nodiscard]] Token current() const;
+    template <typename T> ErrorOr<Block<T>> block(Fn<T()>);
+
+    [[nodiscard]] ErrorOr<Token> current();
     [[nodiscard]] Token previous() const;
-    [[nodiscard]] bool is(Token::Type) const;
+    [[nodiscard]] bool is(Token::Type);
     Token advance();
     ErrorOr<Token> expect(Token::Type);
 
     Error error(Token::Type, Token::Type);
     template <typename... Args> Error error(Args...);
 
-    [[nodiscard]] Vec<Token> tokens() const { return m_tokens; }
-    [[nodiscard]] Vec<Error> errors() const { return m_errors; }
-    [[nodiscard]] usz pos() const { return m_pos; }
+//    [[nodiscard]] Vec<Token> tokens() const { return m_tokens; }
+//    [[nodiscard]] Vec<Error> errors() const { return m_errors; }
+//    [[nodiscard]] usz pos() const { return m_pos; }
 
   private:
     Vec<Token> m_tokens;

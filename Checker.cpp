@@ -89,6 +89,7 @@ ErrorOr<CheckedExpr *> Checker::expression(Expression *expr) {
         }
         case Expression::Kind::String:
         case Expression::Kind::Call:
+        case Expression::Kind::Switch:
             UNIMPLEMENTED;
     }
 

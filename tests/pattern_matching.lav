@@ -1,7 +1,7 @@
-fun main() > int:
-    int a = 10
-    return switch a:
-        case <0   -> 0
-        case 1..5 -> 1
-        case >10  -> 2
-        default   -> 0
+fun main([str] args) > int:
+    return switch len(args)
+        case <0 -> 0
+        case 0 -> 1
+        case 1..5 -> 2
+        case >10 -> 3
+        default -> 4

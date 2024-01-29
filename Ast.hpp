@@ -77,13 +77,14 @@ namespace ExpressionDetails {
 } // namespace ExpressionDetails
 
 struct Expression {
-    enum class Kind { Id, Int, String, Call };
+    enum class Kind { Id, Int, String, Call, Switch };
 
     Var<
             ExpressionDetails::Id *,
             ExpressionDetails::Int *,
             ExpressionDetails::String *,
-            ExpressionDetails::Call *> var;
+            ExpressionDetails::Call *,
+            ExpressionDetails::Switch *> var;
 };
 
 struct Type {
@@ -93,21 +94,30 @@ struct Type {
     Type *subtype{}; // only for array
 };
 
+enum class PatternUnaryOperation {
+    LessThan,
+    GreaterThan,
+};
+
 namespace PatternDetails {
 
     struct Wildcard { };
     struct Expression { ::Expression *expr; };
     struct Range { ::Expression *from, *to; bool inclusive; };
+    struct Unary { ::Expression *value; PatternUnaryOperation operation; };
 
 } // namespace PatternDetails
 
-struct Pattern {
-    enum class Kind { Wildcard, Expression, Range, };
+using PatternCondition = Var<
+        PatternDetails::Wildcard *,
+        PatternDetails::Expression *,
+        PatternDetails::Range *,
+        PatternDetails::Unary *>;
 
-    Var<
-            PatternDetails::Wildcard *,
-            PatternDetails::Expression *,
-            PatternDetails::Range *> var;
+struct Pattern {
+    enum class Kind { Wildcard, Expression, Range, Unary };
+
+    PatternCondition condition;
     ::Expression *body;
 };
 

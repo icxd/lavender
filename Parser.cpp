@@ -4,7 +4,7 @@
 
 ErrorOr<Vec<Statement *>> Parser::parse() {
     Vec<Statement *> stmts{};
-    while (not is(Token::Type::Eof) and not is(Token::Type::Eof)) {
+    while (m_pos < m_tokens.size() and not is(Token::Type::Eof)) {
         if (is(Token::Type::Newline)) { advance(); continue; }
         Statement *s = try$(stmt());
         if (s == nullptr)
@@ -15,7 +15,7 @@ ErrorOr<Vec<Statement *>> Parser::parse() {
 }
 
 ErrorOr<Statement *> Parser::stmt() {
-    switch (current().type) {
+    switch (try$(current()).type) {
         case Token::Type::Object: return try$(object());
         case Token::Type::Fun: return try$(fun());
         case Token::Type::Return: return try$(ret());
@@ -37,7 +37,7 @@ ErrorOr<Statement *> Parser::object() {
     Vec<Field> fields{};
     try$(expect(Token::Type::Colon));
     try$(expect(Token::Type::Indent));
-    while (not is(Token::Type::Eof) and !is(Token::Type::Dedent)) {
+    while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and !is(Token::Type::Dedent)) {
         fields.push_back(try$(field()));
         if (not is(Token::Type::Dedent))
             try$(expect(Token::Type::Newline));
@@ -57,7 +57,7 @@ ErrorOr<Statement *> Parser::fun() {
 
     Vec<Field> parameters{};
     try$(expect(Token::Type::OpenParen));
-    while (not is(Token::Type::Eof) and not is(Token::Type::CloseParen)) {
+    while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and not is(Token::Type::CloseParen)) {
         Type *ty = try$(type());
 
         try$(expect(Token::Type::Id));
@@ -101,34 +101,47 @@ ErrorOr<Statement *> Parser::var() {
 
 ErrorOr<Expression *> Parser::expr() {return primary();}
 ErrorOr<Expression *> Parser::primary() {
-    Expression *expression;
-    switch (current().type) {
+    Expression *expression = nullptr;
+    switch (try$(current()).type) {
         case Token::Type::Id: {
             try$(expect(Token::Type::Id));
             expression = new Expression{.var = new ExpressionDetails::Id{previous().value.value()}};
         } break;
         case Token::Type::Int: {
-            int value = std::stoi(current().value.value());
+            int value = std::stoi(try$(current()).value.value());
             try$(expect(Token::Type::Int));
             expression = new Expression{.var = new ExpressionDetails::Int{value}};
         } break;
         case Token::Type::String: {
-            Str value = current().value.value();
+            Str value = try$(current()).value.value();
             try$(expect(Token::Type::String));
             expression = new Expression{.var = new ExpressionDetails::String{value}};
         } break;
+        case Token::Type::Switch: {
+            try$(expect(Token::Type::Switch));
+            Expression *condition = try$(expr());
+
+            Block<ErrorOr<Pattern *>> raw_patterns = try$(block<ErrorOr<Pattern *>>([&] { return pattern(); }));
+            Vec<Pattern *> patterns{};
+            for (const auto& pattern : raw_patterns.elems) {
+                patterns.push_back(try$(pattern));
+            }
+
+        } break;
         default:
-            return error("expected an expression (such as an integer or a string) but got ", Token::repr(current().type), " instead");
+            return error("expected an expression (such as an integer or a string) but got ", Token::repr(try$(current()).type), " instead");
     }
+    if (expression == nullptr)
+        return error("expected an expression (such as an integer or a string) but got ", Token::repr(try$(current()).type), " instead");
     return postfix(expression);
 }
 
 ErrorOr<Expression *> Parser::postfix(Expression *expression) {
-    switch (current().type) {
+    switch (try$(current()).type) {
         case Token::Type::OpenParen: {
             advance();
             Vec<Argument> args{};
-            while (not is(Token::Type::Eof) and not is(Token::Type::CloseParen)) {
+            while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and not is(Token::Type::CloseParen)) {
                 Opt<SpannedStr> id{};
                 if (is(Token::Type::Id)) {
                     try$(expect(Token::Type::Id));
@@ -149,7 +162,7 @@ ErrorOr<Expression *> Parser::postfix(Expression *expression) {
 }
 
 ErrorOr<Type *> Parser::type() {
-    switch (current().type) {
+    switch (try$(current()).type) {
         case Token::Type::Id: advance(); return new Type{Type::Kind::Id, SpannedStr{previous().value.value(), previous().span}};
         case Token::Type::StrType: advance(); return new Type{Type::Kind::Str};
         case Token::Type::IntType: advance(); return new Type{Type::Kind::Int};
@@ -161,7 +174,7 @@ ErrorOr<Type *> Parser::type() {
         }
         default:
             return error("expected `str`, `int`, or `[` but got `",
-                  Token::repr(current().type), "` instead");
+                  Token::repr(try$(current()).type), "` instead");
     }
 }
 
@@ -180,12 +193,32 @@ ErrorOr<Field> Parser::field() {
     return Field{ty, SpannedStr{id, span}, value};
 }
 
+ErrorOr<Pattern *> Parser::pattern() {
+    if (is(Token::Type::Case)) {
+        try$(expect(Token::Type::Case));
+        PatternCondition condition = try$(pattern_condition());
+        if (is(Token::Type::Arrow)) {
+            try$(expect(Token::Type::Arrow));
+            Expression *value = try$(expr());
+            if (is(Token::Type::Newline))
+                try$(expect(Token::Type::Newline));
+        } else {
+            // Block - not supported yet.
+        }
+    }
+
+    if (is(Token::Type::Default)) {
+    }
+}
+
+ErrorOr<PatternCondition> Parser::pattern_condition() { }
+
 template <typename T> ErrorOr<Block<T>> Parser::block(std::function<T()> fn) {
     Vec<T> elems{};
     try$(expect(Token::Type::Colon));
-    while (not is(Token::Type::Eof) and is(Token::Type::Newline)) advance();
+    while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and is(Token::Type::Newline)) advance();
     try$(expect(Token::Type::Indent));
-    while (not is(Token::Type::Eof) and not is(Token::Type::Dedent)) {
+    while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and not is(Token::Type::Dedent)) {
         elems.push_back(fn());
         while (is(Token::Type::Newline))
             advance();
@@ -195,15 +228,16 @@ template <typename T> ErrorOr<Block<T>> Parser::block(std::function<T()> fn) {
     return Block<T>{elems};
 }
 
-Token Parser::current() const {
-    if (m_pos >= m_tokens.size()) return previous();
+ErrorOr<Token> Parser::current() {
+    if (m_pos >= m_tokens.size())
+        return error("unexpected end of file");
     return m_tokens[m_pos];
 }
 Token Parser::previous() const { return m_tokens[m_pos - 1]; }
-bool Parser::is(Token::Type type) const { return current().type == type; }
+bool Parser::is(Token::Type type) { return current().value().type == type; }
 Token Parser::advance() { return m_tokens[m_pos++]; }
 ErrorOr<Token> Parser::expect(Token::Type type) {
-    if (!is(type)) return error(type, current().type);
+    if (!is(type)) return error(type, try$(current()).type);
     return advance();
 }
 
@@ -214,5 +248,5 @@ Error Parser::error(Token::Type expects, Token::Type got) {
 template <typename... Args> Error Parser::error(Args... args) {
     std::stringstream ss;
     (ss << ... << args);
-    return {ss.str(), current().span};
+    return {ss.str(), try$(current()).span};
 }

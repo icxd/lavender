@@ -99,6 +99,9 @@ void AstPrinter::expression(Expression *expr) {
             }
             std::cout << ")";
         }
+
+        void operator()(const ExpressionDetails::Switch *switch_) const {
+        }
     };
 
     std::visit(Visitor{}, expr->var);

@@ -71,17 +71,17 @@ int main(int argc, char *argv[]) {
     AstPrinter printer{};
     printer.print(statements);
 
-    Checker checker;
-    ErrorOr<Vec<CheckedStmt *>> checker_result = checker.check(statements);
-    if (not stmts.has_value()) {
-        Error error = stmts.error();
-        auto &span = error.span;
-
-        std::cout << "\033[1m" << span.filename << ":" << span.line << ":"
-                  << span.column << ": \033[31merror: \033[0m" << error.message
-                  << "\n";
-        return 1;
-    }
+//    Checker checker;
+//    ErrorOr<Vec<CheckedStmt *>> checker_result = checker.check(statements);
+//    if (not stmts.has_value()) {
+//        Error error = stmts.error();
+//        auto &span = error.span;
+//
+//        std::cout << "\033[1m" << span.filename << ":" << span.line << ":"
+//                  << span.column << ": \033[31merror: \033[0m" << error.message
+//                  << "\n";
+//        return 1;
+//    }
 
     return 0;
 }

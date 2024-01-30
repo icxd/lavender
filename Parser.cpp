@@ -19,6 +19,10 @@ ErrorOr<Statement *> Parser::stmt() {
         case Token::Type::Object: return try$(object());
         case Token::Type::Fun: return try$(fun());
         case Token::Type::Return: return try$(ret());
+        case Token::Type::Unsafe: {
+            try$(expect(Token::Type::Unsafe));
+            return try$(fun(true));
+        }
         default: return try$(var());
     }
 }
@@ -31,7 +35,7 @@ ErrorOr<Statement *> Parser::object() {
     if (is(Token::Type::GreaterThan)) {
         expect(Token::Type::GreaterThan);
         expect(Token::Type::Id);
-        parent = std::make_optional(Spanned{previous().value.value(), previous().span});
+        parent = std::make_optional(SpannedStr{previous().value.value(), previous().span});
     }
 
     Vec<Field> fields{};
@@ -50,7 +54,7 @@ ErrorOr<Statement *> Parser::object() {
     };
 }
 
-ErrorOr<Statement *> Parser::fun() {
+ErrorOr<Statement *> Parser::fun(bool unsafe) {
     try$(expect(Token::Type::Fun));
     try$(expect(Token::Type::Id));
     SpannedStr id = SpannedStr{previous().value.value(), previous().span};
@@ -80,7 +84,7 @@ ErrorOr<Statement *> Parser::fun() {
     }
 
     return new Statement{
-        .var = new StatementDetails::FunDecl{id, parameters, ret_type, Block<Statement *>{stmts} }
+        .var = new StatementDetails::FunDecl{id, parameters, ret_type, Block<Statement *>{stmts}, unsafe }
     };
 }
 
@@ -93,7 +97,7 @@ ErrorOr<Statement *> Parser::ret() {
 ErrorOr<Statement *> Parser::var() {
     Type *ty = try$(type());
     try$(expect(Token::Type::Id));
-    SpannedStr id = Spanned{previous().value.value(), previous().span};
+    SpannedStr id = SpannedStr{previous().value.value(), previous().span};
     try$(expect(Token::Type::Equals));
     Expression *ex = try$(expr());
     return new Statement{ .var = new StatementDetails::VarDecl{ty, id, ex} };
@@ -219,7 +223,7 @@ template <typename T> ErrorOr<Block<T>> Parser::block(std::function<T()> fn) {
     while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and is(Token::Type::Newline)) advance();
     try$(expect(Token::Type::Indent));
     while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and not is(Token::Type::Dedent)) {
-        elems.push_back(fn());
+        elems.push_back(try$(fn()));
         while (is(Token::Type::Newline))
             advance();
     }
@@ -229,6 +233,7 @@ template <typename T> ErrorOr<Block<T>> Parser::block(std::function<T()> fn) {
 }
 
 ErrorOr<Token> Parser::current() {
+//    std::cout << Token::repr(m_tokens[m_pos].type) << " ";
     if (m_pos >= m_tokens.size())
         return error("unexpected end of file");
     return m_tokens[m_pos];

@@ -106,12 +106,13 @@ Scope *Checker::scope() const {
 }
 
 void Checker::begin_scope() {
-    Scope *scope = new Scope{m_next_scope_id++, 0, {}};
+    auto *scope = new Scope{m_next_scope_id++, 0, {}};
     if (m_scope_stack.empty()) {
         scope->parent_id = 0;
     } else {
         scope->parent_id = m_scope_stack.at(m_scope_stack.size() - 1)->id;
     }
+    scope->context = m_scope_stack.at(scope->parent_id)->context;
     m_scope_stack[scope->id] = scope;
 }
 

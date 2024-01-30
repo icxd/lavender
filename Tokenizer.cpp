@@ -37,6 +37,9 @@ static Token::Type ident_type(Str s) {
         case 't':
             if (s == "true") return Token::Type::True;
             break;
+        case 'u':
+            if (s == "unsafe") return Token::Type::Unsafe;
+            break;
     }
     return Token::Type::Id;
 }

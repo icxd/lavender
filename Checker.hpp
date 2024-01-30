@@ -102,10 +102,13 @@ namespace CheckedExprDetails {
 
 }
 
+enum class SafetyContext { Safe, Unsafe };
+
 using ScopeId = usz;
 
 struct Scope {
     ScopeId id, parent_id;
+    SafetyContext context{SafetyContext::Safe};
     Vec<Str> symbols;
 };
 

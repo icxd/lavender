@@ -33,7 +33,7 @@ void AstPrinter::statement(Statement *stmt) {
         }
 
         void operator()(const StatementDetails::FunDecl *fun) const {
-            std::cout << "fun " << fun->id.value << "(";
+            std::cout << (fun->unsafe ? "unsafe " : "") << "fun " << fun->id.value << "(";
             for (usz i = 0; i < fun->parameters.size(); ++i) {
                 auto& param = fun->parameters[i];
                 std::cout << type(param.type) << " " << param.id.value;

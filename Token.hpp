@@ -20,6 +20,7 @@
     X(Switch, "switch")                                                        \
     X(Case, "case")                                                            \
     X(Default, "default")                                                      \
+    X(Unsafe, "unsafe")                                                        \
                                                                                \
     X(StrType, "str")                                                          \
     X(IntType, "int")                                                          \

@@ -35,6 +35,7 @@ namespace StatementDetails {
         Vec<Field> parameters;
         Opt<Type *> ret_type;
         Block<Statement *> body;
+        bool unsafe{false};
     };
 
     struct Return { Opt<::Expression *> value; };

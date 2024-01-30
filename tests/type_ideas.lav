@@ -1,0 +1,12 @@
+object Node:
+    // This would be an optional weak pointer to a Node.
+    // Not sure how this would work yet, but I know some people
+    // find weak pointers useful so it would be nice to have
+    // something like it :)
+    // I currently don't know how you would construct this
+    // if you wanted the node to actually have a parent, but
+    // that's a problem for future me xD
+    weak Node? parent = None
+
+fun main() > int:
+    return 0

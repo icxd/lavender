@@ -102,6 +102,9 @@ void AstPrinter::expression(Expression *expr) {
 
         void operator()(const ExpressionDetails::Switch *switch_) const {
         }
+
+        void operator()(const ExpressionDetails::UnsafeBlock *unsafe_block) const {
+        }
     };
 
     std::visit(Visitor{}, expr->var);

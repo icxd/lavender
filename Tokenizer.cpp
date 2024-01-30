@@ -104,6 +104,9 @@ TokenizeResult tokenize(const char *filename, Str source) {
                     while (pos < source.length() && source[pos] != '\n') {
                         advance();
                     }
+                    advance();
+                    line++;
+                    column = 0;
                 }
                 break;
 

@@ -75,17 +75,20 @@ namespace ExpressionDetails {
         Pattern *default_pattern;
     };
 
+    struct UnsafeBlock { Block<::Expression *> body; };
+
 } // namespace ExpressionDetails
 
 struct Expression {
-    enum class Kind { Id, Int, String, Call, Switch };
+    enum class Kind { Id, Int, String, Call, Switch, UnsafeBlock };
 
     Var<
             ExpressionDetails::Id *,
             ExpressionDetails::Int *,
             ExpressionDetails::String *,
             ExpressionDetails::Call *,
-            ExpressionDetails::Switch *> var;
+            ExpressionDetails::Switch *,
+            ExpressionDetails::UnsafeBlock *> var;
 };
 
 struct Type {

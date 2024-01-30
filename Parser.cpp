@@ -132,6 +132,18 @@ ErrorOr<Expression *> Parser::primary() {
             }
 
         } break;
+        case Token::Type::Unsafe: {
+            try$(expect(Token::Type::Unsafe));
+            Block<ErrorOr<Expression *>> raw_body = try$(block<ErrorOr<Expression *>>([&] { return expr(); }));
+            Vec<Expression *> exprs{};
+            for (const auto& expr : raw_body.elems) {
+                exprs.push_back(try$(expr));
+            }
+
+            expression = new Expression{
+                .var = new ExpressionDetails::UnsafeBlock{exprs},
+            };
+        } break;
         default:
             return error("expected an expression (such as an integer or a string) but got ", Token::repr(try$(current()).type), " instead");
     }
@@ -224,22 +236,21 @@ template <typename T> ErrorOr<Block<T>> Parser::block(std::function<T()> fn) {
     try$(expect(Token::Type::Indent));
     while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and not is(Token::Type::Dedent)) {
         elems.push_back(try$(fn()));
-        while (is(Token::Type::Newline))
+        while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and is(Token::Type::Newline))
             advance();
     }
     if (is(Token::Type::Eof)) try$(expect(Token::Type::Eof));
-    else try$(expect(Token::Type::Dedent));
+    else if (is(Token::Type::Dedent)) try$(expect(Token::Type::Dedent));
     return Block<T>{elems};
 }
 
 ErrorOr<Token> Parser::current() {
-//    std::cout << Token::repr(m_tokens[m_pos].type) << " ";
     if (m_pos >= m_tokens.size())
         return error("unexpected end of file");
     return m_tokens[m_pos];
 }
 Token Parser::previous() const { return m_tokens[m_pos - 1]; }
-bool Parser::is(Token::Type type) { return current().value().type == type; }
+bool Parser::is(Token::Type type) { return m_pos < m_tokens.size() and current().value().type == type; }
 Token Parser::advance() { return m_tokens[m_pos++]; }
 ErrorOr<Token> Parser::expect(Token::Type type) {
     if (!is(type)) return error(type, try$(current()).type);
@@ -253,5 +264,5 @@ Error Parser::error(Token::Type expects, Token::Type got) {
 template <typename... Args> Error Parser::error(Args... args) {
     std::stringstream ss;
     (ss << ... << args);
-    return {ss.str(), try$(current()).span};
+    return {ss.str(), (m_pos < m_tokens.size() ? m_tokens[m_pos] : m_tokens[m_pos - 1]).span };
 }

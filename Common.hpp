@@ -47,6 +47,8 @@ public:
     T value() const { return std::get<T>(m_result_or_error); }
     [[nodiscard]] Error error() const { return std::get<Error>(m_result_or_error); }
 
+    T value_or(T other) { return m_has_value ? value() : other; }
+
 private:
     bool m_has_value;
     Var<T, Error> m_result_or_error;

@@ -8,7 +8,7 @@ ErrorOr<Vec<Statement *>> Parser::parse() {
         if (is(Token::Type::Newline)) { advance(); continue; }
         Statement *s = try$(stmt());
         if (s == nullptr)
-            return error("statement is null, most likely a compiler bug.");
+            return error("check_statement is null, most likely a compiler bug.");
         stmts.push_back(s);
     }
     return stmts;
@@ -145,10 +145,10 @@ ErrorOr<Expression *> Parser::primary() {
             };
         } break;
         default:
-            return error("expected an expression (such as an integer or a string) but got ", Token::repr(try$(current()).type), " instead");
+            return error("expected an check_expression (such as an integer or a string) but got ", Token::repr(try$(current()).type), " instead");
     }
     if (expression == nullptr)
-        return error("expected an expression (such as an integer or a string) but got ", Token::repr(try$(current()).type), " instead");
+        return error("expected an check_expression (such as an integer or a string) but got ", Token::repr(try$(current()).type), " instead");
     return postfix(expression);
 }
 
@@ -231,6 +231,11 @@ ErrorOr<PatternCondition> Parser::pattern_condition() { }
 
 template <typename T> ErrorOr<Block<T>> Parser::block(std::function<T()> fn) {
     Vec<T> elems{};
+    if (is(Token::Type::Arrow)) {
+        try$(expect(Token::Type::Arrow));
+        elems.push_back(try$(fn()));
+        return Block<T>{elems};
+    }
     try$(expect(Token::Type::Colon));
     while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and is(Token::Type::Newline)) advance();
     try$(expect(Token::Type::Indent));

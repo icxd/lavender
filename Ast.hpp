@@ -96,6 +96,15 @@ struct Type {
     Kind type;
     SpannedStr id;
     Type *subtype{}; // only for array
+
+    bool operator==(const Type& other) const {
+        if (type != other.type) return false;
+        if (type == Kind::Id) return id.value == other.id.value;
+        if (type == Kind::Array) return subtype == other.subtype;
+        return true;
+    }
+
+    bool operator!=(const Type& other) const { return not (*this == other); }
 };
 
 enum class PatternUnaryOperation {
@@ -131,7 +140,7 @@ public:
 
 private:
     static void statement(Statement *);
-    static void expression(Expression *);
+    static void expression(Expression *, bool = true);
     static Str type(Type *);
     static void field(Field);
 };

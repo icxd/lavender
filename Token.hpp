@@ -72,5 +72,5 @@ struct Token {
 
     Type type;
     Opt<Str> value;
-    Span span;
+    Span span{};
 };

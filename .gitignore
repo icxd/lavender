@@ -10,7 +10,8 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 
-.vscode
-.idea
+.vscode/
+.idea/
+.ccls-cache/
 a.exe
 cmake-build-debug

@@ -23,18 +23,20 @@ int main(int argc, char *argv[]) {
     ss << file.rdbuf();
     auto source = ss.str();
 
-    auto result = tokenize(filename, source);
+    Project project{};
 
-    for (auto &error : result.errors) {
+    auto tokenize_result = tokenize(filename, source);
+
+    for (auto &error : tokenize_result.errors) {
         auto &span = error.span;
 
         std::cout << "\033[1m" << span.filename << ":" << span.line << ":"
                   << span.column << ": \033[31merror: \033[0m" << error.message
                   << "\n";
     }
-    if (!result.errors.empty()) return 1;
+    if (!tokenize_result.errors.empty()) return 1;
 
-    auto tokens = normalize(result.tokens);
+    auto tokens = normalize(tokenize_result.tokens);
 
     for (auto &token : tokens) {
         auto &span = token.span;
@@ -71,17 +73,17 @@ int main(int argc, char *argv[]) {
     AstPrinter printer{};
     printer.print(statements);
 
-//    Checker checker;
-//    ErrorOr<Vec<CheckedStmt *>> checker_result = checker.check(statements);
-//    if (not stmts.has_value()) {
-//        Error error = stmts.error();
-//        auto &span = error.span;
-//
-//        std::cout << "\033[1m" << span.filename << ":" << span.line << ":"
-//                  << span.column << ": \033[31merror: \033[0m" << error.message
-//                  << "\n";
-//        return 1;
-//    }
+    Checker checker(&project);
+    auto checker_result = checker.check(statements);
+    if (not checker_result.has_value()) {
+        Error error = stmts.error();
+        auto &span = error.span;
+
+        std::cout << "\033[1m" << span.filename << ":" << span.line << ":"
+                  << span.column << ": \033[31merror: \033[0m" << error.message
+                  << "\n";
+        return 1;
+    }
 
     return 0;
 }

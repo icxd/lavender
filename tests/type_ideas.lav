@@ -6,7 +6,11 @@ object Node:
     // I currently don't know how you would construct this
     // if you wanted the node to actually have a parent, but
     // that's a problem for future me xD
-    weak Node? parent = None
+    weak Node? parent = null
+    raw Node left // This is a raw pointer to a Node
+
+safe fun my_safe_function() > int:
+    return 0
 
 fun main() > int:
     return 0

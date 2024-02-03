@@ -74,10 +74,13 @@ ErrorOr<Type> Checker::check_expression(Expression *expression) {
         case Expression::Kind::Null: return Type{ .type = Type::Kind::Optional, .subtype = new Type{Type::Kind::Undetermined} };
         case Expression::Kind::UnsafeBlock: {
             auto block = std::get<ExpressionDetails::UnsafeBlock *>(expression->var);
+            begin_scope();
+            scope()->context = SafetyContext::Unsafe;
             Vec<Expression *> exprs = block->body.elems;
             for (auto expr : exprs)
                 try$(check_expression(expr));
             Type return_type = try$(check_expression(exprs.back()));
+            end_scope();
             return return_type;
         }
         case Expression::Kind::Int: return Type{Type::Kind::Int};
@@ -112,8 +115,6 @@ ErrorOr<Type> Checker::check_expression(Expression *expression) {
 ErrorOr<Type> Checker::check_type(Type *) { }
 
 Scope *Checker::scope() const {
-    std::cout << "\n\n\n\n";
-    std::cout << m_scope_stack.size() << "\n";
     return m_scope_stack.at(m_scope_stack.size() - 1);
 }
 
@@ -132,6 +133,7 @@ void Checker::begin_scope() {
 }
 
 void Checker::end_scope() {
+    m_next_scope_id--;
     Scope *scope = m_scope_stack.at(m_scope_stack.size() - 1);
     m_scope_stack.erase(scope->id);
     delete scope;

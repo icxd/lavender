@@ -17,12 +17,10 @@ ErrorOr<Vec<Statement *>> Parser::parse() {
 ErrorOr<Statement *> Parser::stmt() {
     switch (try$(current()).type) {
         case Token::Type::Object: return try$(object());
-        case Token::Type::Fun: return try$(fun());
+        case Token::Type::Interface: return try$(interface());
+        case Token::Type::Fun:
+        case Token::Type::Unsafe: return try$(fun());
         case Token::Type::Return: return try$(ret());
-        case Token::Type::Unsafe: {
-            try$(expect(Token::Type::Unsafe));
-            return try$(fun(true));
-        }
         default: return try$(var());
     }
 }
@@ -31,60 +29,87 @@ ErrorOr<Statement *> Parser::object() {
     try$(expect(Token::Type::Object));
     try$(expect(Token::Type::Id));
     SpannedStr id = SpannedStr{previous().value.value(), previous().span};
+
+    Vec<SpannedStr> interfaces{};
+    if (is(Token::Type::OpenParen)) {
+        try$(expect(Token::Type::OpenParen));
+        while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and not is(Token::Type::CloseParen)) {
+            try$(expect(Token::Type::Id));
+            SpannedStr interface = SpannedStr{previous().value.value(), previous().span};
+            interfaces.push_back(interface);
+
+            if (is(Token::Type::CloseParen)) break;
+            try$(expect(Token::Type::Comma));
+        }
+        try$(expect(Token::Type::CloseParen));
+    }
+
     Opt<SpannedStr> parent{};
     if (is(Token::Type::GreaterThan)) {
-        expect(Token::Type::GreaterThan);
-        expect(Token::Type::Id);
+        try$(expect(Token::Type::GreaterThan));
+        try$(expect(Token::Type::Id));
         parent = std::make_optional(SpannedStr{previous().value.value(), previous().span});
     }
 
     Vec<Field> fields{};
+    Vec<Method> methods{};
     try$(expect(Token::Type::Colon));
     try$(expect(Token::Type::Indent));
-    while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and !is(Token::Type::Dedent)) {
-        fields.push_back(try$(field()));
-        if (not is(Token::Type::Dedent))
-            try$(expect(Token::Type::Newline));
-        else break;
+    while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and not is(Token::Type::Dedent)) {
+        if (is(Token::Type::Fun) or is(Token::Type::Unsafe))
+            methods.push_back(try$(method()));
+        else fields.push_back(try$(field()));
+
+        while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and is(Token::Type::Newline))
+            advance();
     }
-    try$(expect(Token::Type::Dedent));
+    if (is(Token::Type::Eof)) try$(expect(Token::Type::Eof));
+    else if (is(Token::Type::Dedent)) try$(expect(Token::Type::Dedent));
 
     return new Statement{
-        .var = new StatementDetails::Object{id, parent, {}, fields}
+        .var = new StatementDetails::Object{id, parent, interfaces, fields, methods}
     };
 }
 
-ErrorOr<Statement *> Parser::fun(bool unsafe) {
-    try$(expect(Token::Type::Fun));
+ErrorOr<Statement *> Parser::interface() {
+    try$(expect(Token::Type::Interface));
     try$(expect(Token::Type::Id));
     SpannedStr id = SpannedStr{previous().value.value(), previous().span};
 
-    Vec<Field> parameters{};
-    try$(expect(Token::Type::OpenParen));
-    while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and not is(Token::Type::CloseParen)) {
-        Type *ty = try$(type());
+    Vec<SpannedStr> interfaces{};
+    if (is(Token::Type::OpenParen)) {
+        try$(expect(Token::Type::OpenParen));
+        while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and not is(Token::Type::CloseParen)) {
+            try$(expect(Token::Type::Id));
+            SpannedStr interface = SpannedStr{previous().value.value(), previous().span};
+            interfaces.push_back(interface);
 
-        try$(expect(Token::Type::Id));
-        Str param = previous().value.value();
-
-        parameters.push_back({ty, param, {}});
-    }
-    try$(expect(Token::Type::CloseParen));
-
-    Opt<Type *> ret_type{};
-    if (is(Token::Type::GreaterThan)) {
-        try$(expect(Token::Type::GreaterThan));
-        ret_type = std::make_optional(try$(type()));
+            if (is(Token::Type::CloseParen)) break;
+            try$(expect(Token::Type::Comma));
+        }
+        try$(expect(Token::Type::CloseParen));
     }
 
-    Block<ErrorOr<Statement *>> raw_body = try$(block<ErrorOr<Statement *>>([&] { return stmt(); }));
-    Vec<Statement *> stmts{};
-    for (const auto& stmt : raw_body.elems) {
-        stmts.push_back(try$(stmt));
+    Block<ErrorOr<Method>> raw_methods = try$(block<ErrorOr<Method>>([&] { return method(); }));
+    Vec<Method> methods{};
+    for (const auto& method : raw_methods.elems) {
+        methods.push_back(try$(method));
     }
 
     return new Statement{
-        .var = new StatementDetails::FunDecl{id, parameters, ret_type, Block<Statement *>{stmts}, unsafe }
+        .var = new StatementDetails::Interface{
+            id,
+            interfaces,
+            methods,
+        }
+    };
+}
+
+ErrorOr<Statement *> Parser::fun() {
+    Method m = try$(method());
+
+    return new Statement{
+        .var = new StatementDetails::FunDecl{m.id, m.parameters, m.ret_type, m.body, m.unsafe}
     };
 }
 
@@ -244,6 +269,47 @@ ErrorOr<Field> Parser::field() {
         value = std::make_optional(e);
     }
     return Field{ty, SpannedStr{id, span}, value};
+}
+
+ErrorOr<Method> Parser::method() {
+    bool unsafe = false;
+    if (is(Token::Type::Unsafe)) {
+        try$(expect(Token::Type::Unsafe));
+        unsafe = true;
+    }
+
+    try$(expect(Token::Type::Fun));
+    try$(expect(Token::Type::Id));
+    SpannedStr id = SpannedStr{previous().value.value(), previous().span};
+
+    Vec<Field> parameters{};
+    try$(expect(Token::Type::OpenParen));
+    while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and not is(Token::Type::CloseParen)) {
+        Type *ty = try$(type());
+
+        try$(expect(Token::Type::Id));
+        Str param = previous().value.value();
+
+        parameters.push_back({ty, param, {}});
+    }
+    try$(expect(Token::Type::CloseParen));
+
+    Opt<Type *> ret_type{};
+    if (is(Token::Type::GreaterThan)) {
+        try$(expect(Token::Type::GreaterThan));
+        ret_type = std::make_optional(try$(type()));
+    }
+
+    if (not is(Token::Type::Colon) and not is(Token::Type::Arrow))
+        return Method{id, parameters, ret_type, Block{Vec<Statement *>()}, unsafe};
+
+    Block<ErrorOr<Statement *>> raw_body = try$(block<ErrorOr<Statement *>>([&] { return stmt(); }));
+    Vec<Statement *> stmts{};
+    for (const auto& stmt : raw_body.elems) {
+        stmts.push_back(try$(stmt));
+    }
+
+    return Method{id, parameters, ret_type, Block{stmts}, unsafe};
 }
 
 ErrorOr<Pattern *> Parser::pattern() {

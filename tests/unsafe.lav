@@ -2,5 +2,4 @@ unsafe fun my_unsafe_function() > int:
     return 69
 
 fun main() > int:
-    return unsafe:
-        my_unsafe_function()
+    return unsafe -> my_unsafe_function()

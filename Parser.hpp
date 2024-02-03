@@ -14,7 +14,8 @@ class Parser {
 
     ErrorOr<Statement *> stmt();
     ErrorOr<Statement *> object();
-    ErrorOr<Statement *> fun(bool unsafe = false);
+    ErrorOr<Statement *> interface();
+    ErrorOr<Statement *> fun();
     ErrorOr<Statement *> ret();
     ErrorOr<Statement *> var();
 
@@ -25,6 +26,7 @@ class Parser {
     ErrorOr<Type *> type();
 
     ErrorOr<Field> field();
+    ErrorOr<Method> method();
 
     ErrorOr<Pattern *> pattern();
     ErrorOr<PatternCondition> pattern_condition();

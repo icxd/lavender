@@ -23,6 +23,7 @@ static Token::Type ident_type(Str s) {
         case 'i':
             if (s == "if") return Token::Type::If;
             if (s == "int") return Token::Type::IntType;
+            if (s == "interface") return Token::Type::Interface;
             break;
         case 'n':
             if (s == "null") return Token::Type::Null;

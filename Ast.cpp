@@ -24,20 +24,60 @@ void AstPrinter::field(Field field) {
     std::cout << "\n";
 }
 
+void AstPrinter::method(Method method) {
+    for (usz i = 0; i < indent; i++)
+        std::cout << "    ";
+
+    std::cout << (method.unsafe ? "unsafe " : "") << "fun " << method.id.value << "(";
+    for (usz i = 0; i < method.parameters.size(); ++i) {
+        auto& param = method.parameters[i];
+        std::cout << type(param.type) << " " << param.id.value;
+        if (i != method.parameters.size() - 1)
+            std::cout << ", ";
+    }
+    std::cout << ")";
+    if (method.ret_type.has_value())
+        std::cout << " > " << type(method.ret_type.value());
+    std::cout << "\n";
+    indent += 1;
+    for (auto stmt : method.body.elems) {
+        statement(stmt);
+    }
+    indent -= 1;
+}
+
 void AstPrinter::statement(Statement *stmt) {
     for (usz i = 0; i < indent; i++)
         std::cout << "    ";
 
     struct Visitor {
         void operator()(const StatementDetails::Object *object) const {
-            std::cout << "object " << object->id.value;
+            std::cout << "object " << object->id.value << "(";
+            for (usz i = 0; i < object->interfaces.size(); i++) {
+                std::cout << object->interfaces.at(i).value;
+                if (i != object->interfaces.size() - 1)
+                    std::cout << ", ";
+            }
+            std::cout << ")";
             if (object->parent.has_value())
                 std::cout << " > " << object->parent.value().value;
             std::cout << "\n";
             indent += 1;
-            for (const auto& f : object->fields) {
-                field(f);
+            for (const auto& f : object->fields) field(f);
+            for (const auto& m : object->methods) method(m);
+            indent -= 1;
+        }
+
+        void operator()(const StatementDetails::Interface *interface) const {
+            std::cout << "interface " << interface->id.value << "(";
+            for (usz i = 0; i < interface->interfaces.size(); i++) {
+                std::cout << interface->interfaces.at(i).value;
+                if (i != interface->interfaces.size() - 1)
+                    std::cout << ", ";
             }
+            std::cout << ")\n";
+            indent += 1;
+            for (const auto& m : interface->methods) method(m);
             indent -= 1;
         }
 

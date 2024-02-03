@@ -62,6 +62,7 @@ ErrorOr<Void> Checker::check_statement(Statement *statement) {
             }
         } break;
         case Statement::Kind::Object:
+        case Statement::Kind::Interface:
         case Statement::Kind::Var:
         case Statement::Kind::Expr:
             UNIMPLEMENTED;

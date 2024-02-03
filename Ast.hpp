@@ -8,21 +8,36 @@ struct Expression;
 struct Type;
 struct Pattern;
 
+template <typename T> struct Block { Vec<T> elems; };
+
 struct Field {
     Type *type;
     SpannedStr id;
     Opt<::Expression *> value;
 };
 
-template <typename T> struct Block { Vec<T> elems; };
+struct Method {
+    SpannedStr id;
+    Vec<Field> parameters;
+    Opt<Type *> ret_type;
+    Block<Statement *> body;
+    bool unsafe{false};
+};
 
 namespace StatementDetails {
 
     struct Object {
         SpannedStr id;
         Opt<SpannedStr> parent;
-        Vec<SpannedStr> implements;
+        Vec<SpannedStr> interfaces;
         Vec<Field> fields;
+        Vec<Method> methods;
+    };
+
+    struct Interface {
+        SpannedStr id;
+        Vec<SpannedStr> interfaces;
+        Vec<Method> methods;
     };
 
     struct VarDecl {
@@ -45,10 +60,11 @@ namespace StatementDetails {
 } // namespace StatementDetails
 
 struct Statement {
-    enum class Kind { Object, Fun, Var, Return, Expr };
+    enum class Kind { Object, Interface, Fun, Var, Return, Expr };
 
     Var<
             StatementDetails::Object *,
+            StatementDetails::Interface *,
             StatementDetails::FunDecl *,
             StatementDetails::VarDecl *,
             StatementDetails::Return *,
@@ -166,4 +182,5 @@ private:
     static void expression(Expression *, bool = true);
     static Str type(Type *);
     static void field(Field);
+    static void method(Method);
 };

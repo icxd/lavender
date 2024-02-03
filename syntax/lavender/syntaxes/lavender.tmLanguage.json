@@ -64,7 +64,7 @@
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.other.lavender",
-				"match": "\\b(fun|object)\\b"
+				"match": "\\b(fun|object|interface)\\b"
 			}, {
 				"name": "keyword.control.lavender",
 				"match": "\\b(return|switch|case|default|unsafe)\\b"
@@ -74,6 +74,9 @@
 			"patterns": [{
 				"name": "storage.type.lavender",
 				"match": "\\b(str|int)\\b"
+			}, {
+				"name": "storage.modifier.lavender",
+				"match": "\\b(weak|raw)\\b"
 			}]
 		},
 		"constants": {

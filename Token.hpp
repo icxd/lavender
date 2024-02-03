@@ -16,6 +16,7 @@
     X(True, "true")                                                            \
     X(False, "false")                                                          \
     X(Object, "object")                                                        \
+    X(Interface, "interface")                                                  \
     X(Fun, "fun")                                                              \
     X(Return, "return")                                                        \
     X(Switch, "switch")                                                        \

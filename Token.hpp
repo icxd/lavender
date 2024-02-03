@@ -7,6 +7,7 @@
     X(Int, "integer")                                                          \
     X(Float, "float")                                                          \
     X(String, "string")                                                        \
+    X(Null, "null")                                                            \
                                                                                \
     X(If, "if")                                                                \
     X(Elif, "elif")                                                            \
@@ -25,6 +26,9 @@
     X(StrType, "str")                                                          \
     X(IntType, "int")                                                          \
                                                                                \
+    X(Weak, "weak")                                                            \
+    X(Raw, "raw")                                                              \
+                                                                               \
     X(Minus, "-")                                                              \
     X(Equals, "=")                                                             \
     X(GreaterThan, ">")                                                        \
@@ -37,6 +41,7 @@
     X(Colon, ":")                                                              \
     X(Comma, ",")                                                              \
     X(Dot, ".")                                                                \
+    X(Question, "?")                                                           \
     X(Range, "..")                                                             \
     X(Arrow, "->")                                                             \
                                                                                \

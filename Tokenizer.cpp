@@ -24,10 +24,14 @@ static Token::Type ident_type(Str s) {
             if (s == "if") return Token::Type::If;
             if (s == "int") return Token::Type::IntType;
             break;
+        case 'n':
+            if (s == "null") return Token::Type::Null;
+            break;
         case 'o':
             if (s == "object") return Token::Type::Object;
             break;
         case 'r':
+            if (s == "raw") return Token::Type::Raw;
             if (s == "return") return Token::Type::Return;
             break;
         case 's':
@@ -39,6 +43,9 @@ static Token::Type ident_type(Str s) {
             break;
         case 'u':
             if (s == "unsafe") return Token::Type::Unsafe;
+            break;
+        case 'w':
+            if (s == "weak") return Token::Type::Weak;
             break;
     }
     return Token::Type::Id;
@@ -187,6 +194,11 @@ TokenizeResult tokenize(const char *filename, Str source) {
                     tokens.push_back(Token{Token::Type::Dot, {}, make_span()});
                 }
             } break;
+
+            case '?':
+                advance();
+                tokens.push_back(Token{Token::Type::Question, {}, make_span()});
+                break;
 
             case '"': {
                 advance();

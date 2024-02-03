@@ -1,5 +1,6 @@
 #pragma once
 
+#include <format>
 #include "Common.hpp"
 
 struct Statement;
@@ -38,7 +39,7 @@ namespace StatementDetails {
         bool unsafe{false};
     };
 
-    struct Return { Opt<::Expression *> value; };
+    struct Return { Span span{}; Opt<::Expression *> value; };
     struct Expression { ::Expression *expr; };
 
 } // namespace StatementDetails
@@ -61,10 +62,12 @@ struct Argument {
 
 namespace ExpressionDetails {
 
+    struct Null { Span span;};
     struct Id { SpannedStr id; };
     struct Int { int value; };
     struct String { SpannedStr value; };
     struct Call {
+        Span span;
         ::Expression *callee;
         Vec<Argument> arguments;
     };
@@ -80,9 +83,10 @@ namespace ExpressionDetails {
 } // namespace ExpressionDetails
 
 struct Expression {
-    enum class Kind { Id, Int, String, Call, Switch, UnsafeBlock };
+    enum class Kind { Null, Id, Int, String, Call, Switch, UnsafeBlock };
 
     Var<
+            ExpressionDetails::Null *,
             ExpressionDetails::Id *,
             ExpressionDetails::Int *,
             ExpressionDetails::String *,
@@ -92,19 +96,38 @@ struct Expression {
 };
 
 struct Type {
-    enum class Kind { Id, Str, Int, Array };
+    enum class Kind { Undetermined, Id, Str, Int, Array, Weak, Raw, Optional };
     Kind type;
     SpannedStr id;
-    Type *subtype{}; // only for array
+    Type *subtype{}; // only for array, weak- and raw pointers, optional
 
     bool operator==(const Type& other) const {
+        // TODO: this is sort of a hack i guess to get around not having type inference maybe?
+        if (type == Kind::Undetermined || other.type == Kind::Undetermined) return true;
+
         if (type != other.type) return false;
         if (type == Kind::Id) return id.value == other.id.value;
         if (type == Kind::Array) return subtype == other.subtype;
+        if (type == Kind::Weak) return subtype == other.subtype;
+        if (type == Kind::Raw) return subtype == other.subtype;
+        if (type == Kind::Optional) return subtype == other.subtype;
         return true;
     }
 
     bool operator!=(const Type& other) const { return not (*this == other); }
+
+    static Str repr(Type type) {
+        switch (type.type) {
+            case Kind::Undetermined: return "<?>";
+            case Kind::Id: return type.id.value;
+            case Kind::Str: return "str";
+            case Kind::Int: return "int";
+            case Kind::Array: return std::format("[{}]", Type::repr(*type.subtype));
+            case Kind::Weak: return std::format("weak {}", Type::repr(*type.subtype));
+            case Kind::Raw: return std::format("raw {}", Type::repr(*type.subtype));
+            case Kind::Optional: return std::format("{}?", Type::repr(*type.subtype));
+        }
+    }
 };
 
 enum class PatternUnaryOperation {

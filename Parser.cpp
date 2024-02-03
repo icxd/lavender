@@ -89,9 +89,10 @@ ErrorOr<Statement *> Parser::fun(bool unsafe) {
 }
 
 ErrorOr<Statement *> Parser::ret() {
+    Span span = try$(current()).span;
     try$(expect(Token::Type::Return));
     Opt<Expression *> value = std::make_optional(try$(expr()));
-    return new Statement{ .var = new StatementDetails::Return{value} };
+    return new Statement{ .var = new StatementDetails::Return{span, value} };
 }
 
 ErrorOr<Statement *> Parser::var() {
@@ -107,6 +108,11 @@ ErrorOr<Expression *> Parser::expr() {return primary();}
 ErrorOr<Expression *> Parser::primary() {
     Expression *expression = nullptr;
     switch (try$(current()).type) {
+        case Token::Type::Null: {
+            Span span = try$(current()).span;
+            try$(expect(Token::Type::Null));
+            expression = new Expression{.var = new ExpressionDetails::Null{span}};
+        } break;
         case Token::Type::Id: {
             try$(expect(Token::Type::Id));
             expression = new Expression{.var = new ExpressionDetails::Id{previous().value.value()}};
@@ -145,16 +151,17 @@ ErrorOr<Expression *> Parser::primary() {
             };
         } break;
         default:
-            return error("expected an check_expression (such as an integer or a string) but got ", Token::repr(try$(current()).type), " instead");
+            return error("expected an expression (such as an integer or a string) but got ", Token::repr(try$(current()).type), " instead");
     }
     if (expression == nullptr)
-        return error("expected an check_expression (such as an integer or a string) but got ", Token::repr(try$(current()).type), " instead");
+        return error("expected an expression (such as an integer or a string) but got ", Token::repr(try$(current()).type), " instead");
     return postfix(expression);
 }
 
 ErrorOr<Expression *> Parser::postfix(Expression *expression) {
     switch (try$(current()).type) {
         case Token::Type::OpenParen: {
+            Span span = previous().span;
             advance();
             Vec<Argument> args{};
             while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and not is(Token::Type::CloseParen)) {
@@ -170,7 +177,7 @@ ErrorOr<Expression *> Parser::postfix(Expression *expression) {
                     try$(expect(Token::Type::Comma));
             }
             try$(expect(Token::Type::CloseParen));
-            return postfix(new Expression{.var = new ExpressionDetails::Call{expression, args}});
+            return postfix(new Expression{.var = new ExpressionDetails::Call{span, expression, args}});
         }
         default:
             return expression;
@@ -178,20 +185,50 @@ ErrorOr<Expression *> Parser::postfix(Expression *expression) {
 }
 
 ErrorOr<Type *> Parser::type() {
+    Type *ty = nullptr;
     switch (try$(current()).type) {
-        case Token::Type::Id: advance(); return new Type{Type::Kind::Id, SpannedStr{previous().value.value(), previous().span}};
-        case Token::Type::StrType: advance(); return new Type{Type::Kind::Str};
-        case Token::Type::IntType: advance(); return new Type{Type::Kind::Int};
+        case Token::Type::Id:
+            advance();
+            ty = new Type{Type::Kind::Id, SpannedStr{previous().value.value(), previous().span}};
+            break;
+        case Token::Type::StrType:
+            advance();
+            ty = new Type{Type::Kind::Str};
+            break;
+        case Token::Type::IntType:
+            advance();
+            ty = new Type{Type::Kind::Int};
+            break;
         case Token::Type::OpenBracket: {
             try$(expect(Token::Type::OpenBracket));
             Type *subtype = try$(type());
             try$(expect(Token::Type::CloseBracket));
-            return new Type{.type = Type::Kind::Array, .subtype = subtype};
+            ty = new Type{.type = Type::Kind::Array, .subtype = subtype};
         }
+            break;
+        case Token::Type::Weak: {
+            try$(expect(Token::Type::Weak));
+            Type *subtype = try$(type());
+            ty = new Type{.type = Type::Kind::Weak, .subtype = subtype};
+        }
+            break;
+        case Token::Type::Raw: {
+            try$(expect(Token::Type::Raw));
+            Type *subtype = try$(type());
+            ty = new Type{.type = Type::Kind::Raw, .subtype = subtype};
+        }
+            break;
         default:
             return error("expected `str`, `int`, or `[` but got `",
-                  Token::repr(try$(current()).type), "` instead");
+                         Token::repr(try$(current()).type), "` instead");
     }
+
+    if (is(Token::Type::Question)) {
+        try$(expect(Token::Type::Question));
+        ty = new Type{.type = Type::Kind::Optional, .subtype = ty};
+    }
+
+    return ty;
 }
 
 ErrorOr<Field> Parser::field() {

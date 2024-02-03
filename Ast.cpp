@@ -87,6 +87,10 @@ void AstPrinter::expression(Expression *expr, bool print_indent) {
         std::cout << "    ";
 
     struct Visitor {
+        void operator()(const ExpressionDetails::Null *) const {
+            std::cout << "null";
+        }
+
         void operator()(const ExpressionDetails::Id *id) const {
             std::cout << id->id.value;
         }
@@ -129,17 +133,4 @@ void AstPrinter::expression(Expression *expr, bool print_indent) {
     std::visit(Visitor{}, expr->var);
 }
 
-Str AstPrinter::type(Type *ty) {
-    switch (ty->type) {
-        case Type::Kind::Id: return ty->id.value;
-        case Type::Kind::Str: return "str";
-        case Type::Kind::Int: return "int";
-        case Type::Kind::Array: {
-            std::stringstream ss;
-            ss << "[" << type(ty->subtype) << "]";
-            return ss.str();
-        }
-    }
-
-    return "";
-}
+Str AstPrinter::type(Type *ty) { return Type::repr(*ty); }

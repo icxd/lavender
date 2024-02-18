@@ -107,6 +107,12 @@ ErrorOr<Type> Checker::check_expression(Expression *expression) {
         }
         case Expression::Kind::Id:
         case Expression::Kind::Switch:
+        case Expression::Kind::Index:
+        case Expression::Kind::Generic:
+        case Expression::Kind::Unary:
+        case Expression::Kind::Binary:
+        case Expression::Kind::If:
+        case Expression::Kind::Access:
             UNIMPLEMENTED;
     }
 

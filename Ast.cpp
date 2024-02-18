@@ -157,6 +157,64 @@ void AstPrinter::expression(Expression *expr, bool print_indent) {
             std::cout << ")";
         }
 
+        void operator()(const ExpressionDetails::Index *index) const {
+            expression(index->expr, false);
+            std::cout << "[";
+            expression(index->index, false);
+            std::cout << "]";
+        }
+
+        void operator()(const ExpressionDetails::Generic *generic) const {
+            expression(generic->expr, false);
+            std::cout << "[";
+            for (usz i = 0; i < generic->generic_args.size(); ++i) {
+                auto& param = generic->generic_args[i];
+                std::cout << type(param);
+                if (i != generic->generic_args.size() - 1)
+                    std::cout << ", ";
+            }
+            std::cout << "]";
+        }
+
+        void operator()(const ExpressionDetails::Unary *unary) const {
+            switch (unary->operation) {
+                case ExpressionDetails::Unary::Operation::Dereference:
+                    std::cout << "*";
+                    break;
+                case ExpressionDetails::Unary::Operation::AddressOf:
+                    std::cout << "&";
+                    break;
+            }
+            expression(unary->value, false);
+        }
+
+        void operator()(const ExpressionDetails::Binary *binary) const {
+            expression(binary->left, false);
+            switch (binary->operation) {
+                case ExpressionDetails::Binary::Operation::Equals:
+                    std::cout << " == ";
+                    break;
+            }
+            expression(binary->right, false);
+        }
+
+        void operator()(const ExpressionDetails::If *if_) const {
+            std::cout << "if ";
+            expression(if_->condition, false);
+            std::cout << " then ";
+            expression(if_->then, false);
+            if (if_->else_.has_value()) {
+                std::cout << " else ";
+                expression(if_->else_.value(), false);
+            }
+        }
+
+        void operator()(const ExpressionDetails::Access *access) const {
+            expression(access->expr, false);
+            std::cout << ".";
+            expression(access->member, false);
+        }
+
         void operator()(const ExpressionDetails::Switch *switch_) const {
         }
 

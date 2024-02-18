@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 
+using u8 = unsigned char;
 using usz = unsigned long;
 
 using Str = std::string;

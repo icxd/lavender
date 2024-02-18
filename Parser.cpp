@@ -30,6 +30,8 @@ ErrorOr<Statement *> Parser::object() {
     try$(expect(Token::Type::Id));
     SpannedStr id = SpannedStr{previous().value.value(), previous().span};
 
+    Vec<Type *> generic_params = try$(generics());
+
     Vec<SpannedStr> interfaces{};
     if (is(Token::Type::OpenParen)) {
         try$(expect(Token::Type::OpenParen));
@@ -56,7 +58,7 @@ ErrorOr<Statement *> Parser::object() {
     try$(expect(Token::Type::Colon));
     try$(expect(Token::Type::Indent));
     while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and not is(Token::Type::Dedent)) {
-        if (is(Token::Type::Fun) or is(Token::Type::Unsafe))
+        if (is(Token::Type::Fun) or is(Token::Type::Unsafe) or is(Token::Type::Static))
             methods.push_back(try$(method()));
         else fields.push_back(try$(field()));
 
@@ -67,7 +69,7 @@ ErrorOr<Statement *> Parser::object() {
     else if (is(Token::Type::Dedent)) try$(expect(Token::Type::Dedent));
 
     return new Statement{
-        .var = new StatementDetails::Object{id, parent, interfaces, fields, methods}
+        .var = new StatementDetails::Object{id, generic_params, parent, interfaces, fields, methods}
     };
 }
 
@@ -129,7 +131,42 @@ ErrorOr<Statement *> Parser::var() {
     return new Statement{ .var = new StatementDetails::VarDecl{ty, id, ex} };
 }
 
-ErrorOr<Expression *> Parser::expr() {return primary();}
+ErrorOr<Expression *> Parser::expr() { return binary(); }
+ErrorOr<Expression *> Parser::binary() {
+    u8 precedence = try$(current()).precedence();
+    Expression *left = try$(unary());
+    if (left == nullptr) return error("expected an expression");
+    while (try$(current()).precedence() >= precedence and try$(current()).is_binary()) {
+        Token op_token = advance();
+        ExpressionDetails::Binary::Operation op;
+
+        switch (op_token.type) {
+            case Token::Type::EqualsEquals: op = ExpressionDetails::Binary::Operation::Equals; break;
+            // TODO: add rest
+            default: return error("expected an operator but got `", Token::repr(op_token.type), "` instead");
+        }
+
+        Expression *right = try$(unary());
+        if (right == nullptr) return error("expected an expression after `", Token::repr(op_token.type), "`");
+        left = new Expression{.var = new ExpressionDetails::Binary{op, left, right}};
+    }
+    return left;
+}
+ErrorOr<Expression *> Parser::unary() {
+    if (is(Token::Type::Asterisk) or is(Token::Type::BitwiseAnd)) {
+        Token op_token = advance();
+
+        ExpressionDetails::Unary::Operation op;
+        if (op_token.type == Token::Type::Asterisk) op = ExpressionDetails::Unary::Operation::Dereference;
+        else if (op_token.type == Token::Type::BitwiseAnd) op = ExpressionDetails::Unary::Operation::AddressOf;
+        else return error("expected `*` or `&` but got `", Token::repr(op_token.type), "` instead");
+
+        Expression *right = try$(unary());
+        if (right == nullptr) return error("expected an expression after `", Token::repr(op_token.type), "`");
+        return new Expression{.var = new ExpressionDetails::Unary{op, right}};
+    }
+    return primary();
+}
 ErrorOr<Expression *> Parser::primary() {
     Expression *expression = nullptr;
     switch (try$(current()).type) {
@@ -151,6 +188,19 @@ ErrorOr<Expression *> Parser::primary() {
             Str value = try$(current()).value.value();
             try$(expect(Token::Type::String));
             expression = new Expression{.var = new ExpressionDetails::String{value}};
+        } break;
+        case Token::Type::If: {
+            try$(expect(Token::Type::If));
+            Expression *condition = try$(expr());
+            try$(expect(Token::Type::Then));
+            Expression *then = try$(expr());
+            if (is(Token::Type::Else)) {
+                try$(expect(Token::Type::Else));
+                Expression *otherwise = try$(expr());
+                expression = new Expression{.var = new ExpressionDetails::If{condition, then, otherwise}};
+            } else {
+                expression = new Expression{.var = new ExpressionDetails::If{condition, then, std::nullopt}};
+            }
         } break;
         case Token::Type::Switch: {
             try$(expect(Token::Type::Switch));
@@ -202,7 +252,47 @@ ErrorOr<Expression *> Parser::postfix(Expression *expression) {
                     try$(expect(Token::Type::Comma));
             }
             try$(expect(Token::Type::CloseParen));
-            return postfix(new Expression{.var = new ExpressionDetails::Call{span, expression, args}});
+            return postfix(new Expression{.var = new ExpressionDetails::Call{span, expression, {}, args}});
+        }
+        case Token::Type::OpenBracket: {
+            auto checkpoint = m_pos;
+            advance();
+            auto index = expr();
+            if (index.has_value()) {
+                try$(expect(Token::Type::CloseBracket));
+                return postfix(new Expression{.var = new ExpressionDetails::Index{expression, index.value()}});
+            } else {
+                m_pos = checkpoint;
+            }
+
+            // In this case, it would be a generic function call or a generic type.
+            Vec<Type *> generic_args = try$(generics());
+            if (is(Token::Type::OpenParen)) {
+                try$(expect(Token::Type::OpenParen));
+                Vec<Argument> args{};
+                while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and not is(Token::Type::CloseParen)) {
+                    Opt<SpannedStr> id{};
+                    if (is(Token::Type::Id)) {
+                        try$(expect(Token::Type::Id));
+                        id = std::make_optional(SpannedStr{previous().value.value(), previous().span});
+                        try$(expect(Token::Type::Colon));
+                    }
+                    Expression *ex = try$(expr());
+                    args.push_back({id, ex});
+                    if (not is(Token::Type::CloseParen))
+                        try$(expect(Token::Type::Comma));
+                }
+                try$(expect(Token::Type::CloseParen));
+                return postfix(new Expression{.var = new ExpressionDetails::Call{previous().span, expression, generic_args, args}});
+            }
+
+            return postfix(new Expression{.var = new ExpressionDetails::Generic{expression, generic_args}});
+        }
+        case Token::Type::Dot: {
+            advance();
+            Expression *member = try$(primary());
+            if (member == nullptr) return error("expected an expression after `.`");
+            return postfix(new Expression{.var = new ExpressionDetails::Access{expression, member}});
         }
         default:
             return expression;
@@ -215,6 +305,10 @@ ErrorOr<Type *> Parser::type() {
         case Token::Type::Id:
             advance();
             ty = new Type{Type::Kind::Id, SpannedStr{previous().value.value(), previous().span}};
+            if (is(Token::Type::OpenBracket)) {
+                Vec<Type *> generic_args = try$(generics());
+                ty = new Type{.type = Type::Kind::Generic, .id = ty->id, .generic_args = generic_args};
+            }
             break;
         case Token::Type::StrType:
             advance();
@@ -272,7 +366,11 @@ ErrorOr<Field> Parser::field() {
 }
 
 ErrorOr<Method> Parser::method() {
-    bool unsafe = false;
+    bool unsafe = false, static_ = false;
+    if (is(Token::Type::Static)) {
+        try$(expect(Token::Type::Static));
+        static_ = true;
+    }
     if (is(Token::Type::Unsafe)) {
         try$(expect(Token::Type::Unsafe));
         unsafe = true;
@@ -309,7 +407,22 @@ ErrorOr<Method> Parser::method() {
         stmts.push_back(try$(stmt));
     }
 
-    return Method{id, parameters, ret_type, Block{stmts}, unsafe};
+    return Method{id, parameters, ret_type, Block{stmts}, unsafe, static_};
+}
+
+ErrorOr<Vec<Type *>> Parser::generics() {
+    Vec<Type *> params{};
+    if (is(Token::Type::OpenBracket)) {
+        try$(expect(Token::Type::OpenBracket));
+        while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and not is(Token::Type::CloseBracket)) {
+            Type *ty = try$(type());
+            params.push_back(ty);
+            if (is(Token::Type::CloseBracket)) break;
+            try$(expect(Token::Type::Comma));
+        }
+        try$(expect(Token::Type::CloseBracket));
+    }
+    return params;
 }
 
 ErrorOr<Pattern *> Parser::pattern() {

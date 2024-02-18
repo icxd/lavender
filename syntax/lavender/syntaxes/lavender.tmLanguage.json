@@ -64,10 +64,10 @@
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.other.lavender",
-				"match": "\\b(fun|object|interface)\\b"
+				"match": "\\b(static|fun|object|interface)\\b"
 			}, {
 				"name": "keyword.control.lavender",
-				"match": "\\b(return|switch|case|default|unsafe)\\b"
+				"match": "\\b(return|switch|case|default|unsafe|ref|if|then|else)\\b"
 			}]
 		},
 		"types": {

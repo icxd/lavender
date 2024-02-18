@@ -10,6 +10,7 @@
     X(Null, "null")                                                            \
                                                                                \
     X(If, "if")                                                                \
+    X(Then, "then")                                                            \
     X(Elif, "elif")                                                            \
     X(Else, "else")                                                            \
     X(Guard, "guard")                                                          \
@@ -17,6 +18,7 @@
     X(False, "false")                                                          \
     X(Object, "object")                                                        \
     X(Interface, "interface")                                                  \
+    X(Static, "static")                                                        \
     X(Fun, "fun")                                                              \
     X(Return, "return")                                                        \
     X(Switch, "switch")                                                        \
@@ -31,9 +33,12 @@
     X(Raw, "raw")                                                              \
                                                                                \
     X(Minus, "-")                                                              \
+    X(Asterisk, "*")                                                           \
     X(Equals, "=")                                                             \
+    X(EqualsEquals, "==")                                                      \
     X(GreaterThan, ">")                                                        \
     X(LessThan, "<")                                                           \
+    X(BitwiseAnd, "&")                                                         \
                                                                                \
     X(OpenParen, "(")                                                          \
     X(CloseParen, ")")                                                         \
@@ -79,4 +84,20 @@ struct Token {
     Type type;
     Opt<Str> value;
     Span span{};
+
+    [[nodiscard]] inline u8 precedence() const {
+        switch (type) {
+            case Type::EqualsEquals: return 1;
+            default: return 0;
+        }
+    }
+
+    [[nodiscard]] inline bool is_binary() const {
+        switch (type) {
+            case Type::EqualsEquals:
+                return true;
+            default:
+                return false;
+        }
+    }
 };

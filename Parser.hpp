@@ -20,6 +20,8 @@ class Parser {
     ErrorOr<Statement *> var();
 
     ErrorOr<Expression *> expr();
+    ErrorOr<Expression *> binary();
+    ErrorOr<Expression *> unary();
     ErrorOr<Expression *> primary();
     ErrorOr<Expression *> postfix(Expression *);
 
@@ -27,6 +29,7 @@ class Parser {
 
     ErrorOr<Field> field();
     ErrorOr<Method> method();
+    ErrorOr<Vec<Type *>> generics();
 
     ErrorOr<Pattern *> pattern();
     ErrorOr<PatternCondition> pattern_condition();

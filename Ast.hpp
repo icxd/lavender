@@ -22,12 +22,14 @@ struct Method {
     Opt<Type *> ret_type;
     Block<Statement *> body;
     bool unsafe{false};
+    bool static_{false};
 };
 
 namespace StatementDetails {
 
     struct Object {
         SpannedStr id;
+        Vec<Type *> generic_params;
         Opt<SpannedStr> parent;
         Vec<SpannedStr> interfaces;
         Vec<Field> fields;
@@ -85,7 +87,40 @@ namespace ExpressionDetails {
     struct Call {
         Span span;
         ::Expression *callee;
+        Vec<Type *> generic_params;
         Vec<Argument> arguments;
+    };
+    struct Index {
+        ::Expression *expr;
+        ::Expression *index;
+    };
+    struct Generic {
+        ::Expression *expr;
+        Vec<Type *> generic_args;
+    };
+    struct Unary {
+        enum class Operation { Dereference, AddressOf };
+
+        Operation operation;
+        ::Expression *value;
+    };
+
+    struct Binary {
+        enum class Operation { Equals };
+
+        Operation operation;
+        ::Expression *left, *right;
+    };
+
+    struct If {
+        ::Expression *condition;
+        ::Expression *then;
+        Opt<::Expression *> else_;
+    };
+
+    struct Access {
+        ::Expression *expr;
+        ::Expression *member;
     };
 
     struct Switch {
@@ -99,7 +134,21 @@ namespace ExpressionDetails {
 } // namespace ExpressionDetails
 
 struct Expression {
-    enum class Kind { Null, Id, Int, String, Call, Switch, UnsafeBlock };
+    enum class Kind {
+        Null,
+        Id,
+        Int,
+        String,
+        Call,
+        Index,
+        Generic,
+        Unary,
+        Binary,
+        If,
+        Access,
+        Switch,
+        UnsafeBlock
+    };
 
     Var<
             ExpressionDetails::Null *,
@@ -107,15 +156,22 @@ struct Expression {
             ExpressionDetails::Int *,
             ExpressionDetails::String *,
             ExpressionDetails::Call *,
+            ExpressionDetails::Index *,
+            ExpressionDetails::Generic *,
+            ExpressionDetails::Unary *,
+            ExpressionDetails::Binary *,
+            ExpressionDetails::If *,
+            ExpressionDetails::Access *,
             ExpressionDetails::Switch *,
             ExpressionDetails::UnsafeBlock *> var;
 };
 
 struct Type {
-    enum class Kind { Undetermined, Id, Str, Int, Array, Weak, Raw, Optional };
+    enum class Kind { Undetermined, Id, Str, Int, Array, Weak, Raw, Optional, Generic };
     Kind type;
     SpannedStr id;
     Type *subtype{}; // only for array, weak- and raw pointers, optional
+    Vec<Type *> generic_args;
 
     bool operator==(const Type& other) const {
         // TODO: this is sort of a hack i guess to get around not having type inference maybe?
@@ -127,6 +183,13 @@ struct Type {
         if (type == Kind::Weak) return subtype == other.subtype;
         if (type == Kind::Raw) return subtype == other.subtype;
         if (type == Kind::Optional) return subtype == other.subtype;
+        if (type == Kind::Generic) {
+            if (id.value != other.id.value) return false;
+            if (generic_args.size() != other.generic_args.size()) return false;
+            for (usz i = 0; i < generic_args.size(); ++i) {
+                if (*generic_args[i] != *other.generic_args[i]) return false;
+            }
+        }
         return true;
     }
 
@@ -142,6 +205,16 @@ struct Type {
             case Kind::Weak: return std::format("weak {}", Type::repr(*type.subtype));
             case Kind::Raw: return std::format("raw {}", Type::repr(*type.subtype));
             case Kind::Optional: return std::format("{}?", Type::repr(*type.subtype));
+            case Kind::Generic: {
+                Str repr = type.id.value;
+                repr += "[";
+                for (usz i = 0; i < type.generic_args.size(); ++i) {
+                    repr += Type::repr(*type.generic_args[i]);
+                    if (i != type.generic_args.size() - 1) repr += ", ";
+                }
+                repr += "]";
+                return repr;
+            }
         }
     }
 };

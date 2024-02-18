@@ -36,11 +36,13 @@ static Token::Type ident_type(Str s) {
             if (s == "return") return Token::Type::Return;
             break;
         case 's':
+            if (s == "static") return Token::Type::Static;
             if (s == "str") return Token::Type::StrType;
             if (s == "switch") return Token::Type::Switch;
             break;
         case 't':
             if (s == "true") return Token::Type::True;
+            if (s == "then") return Token::Type::Then;
             break;
         case 'u':
             if (s == "unsafe") return Token::Type::Unsafe;
@@ -128,9 +130,20 @@ TokenizeResult tokenize(const char *filename, Str source) {
                 }
                 break;
 
+            case '*':
+                advance();
+                tokens.push_back(Token{Token::Type::Asterisk, {}, make_span()});
+                break;
+
             case '=':
                 advance();
-                tokens.push_back(Token{Token::Type::Equals, {}, make_span()});
+                if (pos < source.length() && source[pos] == '=') {
+                    advance();
+                    tokens.push_back(
+                        Token{Token::Type::EqualsEquals, {}, make_span(2)});
+                } else {
+                    tokens.push_back(Token{Token::Type::Equals, {}, make_span()});
+                }
                 break;
 
             case '>':
@@ -141,6 +154,11 @@ TokenizeResult tokenize(const char *filename, Str source) {
             case '<':
                 advance();
                 tokens.push_back(Token{Token::Type::LessThan, {}, make_span()});
+                break;
+
+            case '&':
+                advance();
+                tokens.push_back(Token{Token::Type::BitwiseAnd, {}, make_span()});
                 break;
 
             case '(':

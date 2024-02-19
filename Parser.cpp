@@ -2,11 +2,11 @@
 #include <sstream>
 #include <iostream>
 
-ErrorOr<Vec<Statement *>> Parser::parse() {
-    Vec<Statement *> stmts{};
+ErrorOr<Vec<ParsedStatement *>> Parser::parse() {
+    Vec<ParsedStatement *> stmts{};
     while (m_pos < m_tokens.size() and not is(Token::Type::Eof)) {
         if (is(Token::Type::Newline)) { advance(); continue; }
-        Statement *s = try$(stmt());
+        ParsedStatement *s = try$(stmt());
         if (s == nullptr)
             return error("check_statement is null, most likely a compiler bug.");
         stmts.push_back(s);
@@ -14,7 +14,7 @@ ErrorOr<Vec<Statement *>> Parser::parse() {
     return stmts;
 }
 
-ErrorOr<Statement *> Parser::stmt() {
+ErrorOr<ParsedStatement *> Parser::stmt() {
     switch (try$(current()).type) {
         case Token::Type::Object: return try$(object());
         case Token::Type::Interface: return try$(interface());
@@ -25,7 +25,7 @@ ErrorOr<Statement *> Parser::stmt() {
     }
 }
 
-ErrorOr<Statement *> Parser::object() {
+ErrorOr<ParsedStatement *> Parser::object() {
     try$(expect(Token::Type::Object));
     try$(expect(Token::Type::Id));
     SpannedStr id = SpannedStr{previous().value.value(), previous().span};
@@ -53,8 +53,8 @@ ErrorOr<Statement *> Parser::object() {
         parent = std::make_optional(SpannedStr{previous().value.value(), previous().span});
     }
 
-    Vec<Field> fields{};
-    Vec<Method> methods{};
+    Vec<ParsedField> fields{};
+    Vec<ParsedMethod> methods{};
     try$(expect(Token::Type::Colon));
     try$(expect(Token::Type::Indent));
     while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and not is(Token::Type::Dedent)) {
@@ -68,12 +68,12 @@ ErrorOr<Statement *> Parser::object() {
     if (is(Token::Type::Eof)) try$(expect(Token::Type::Eof));
     else if (is(Token::Type::Dedent)) try$(expect(Token::Type::Dedent));
 
-    return new Statement{
-        .var = new StatementDetails::Object{id, generic_params, parent, interfaces, fields, methods}
-    };
+    auto *obj = new ParsedObject{id, generic_params, parent, interfaces, fields, methods};
+    m_parsed_namespace.objects.push_back(obj);
+    return new ParsedStatement{ .var = obj };
 }
 
-ErrorOr<Statement *> Parser::interface() {
+ErrorOr<ParsedStatement *> Parser::interface() {
     try$(expect(Token::Type::Interface));
     try$(expect(Token::Type::Id));
     SpannedStr id = SpannedStr{previous().value.value(), previous().span};
@@ -92,14 +92,14 @@ ErrorOr<Statement *> Parser::interface() {
         try$(expect(Token::Type::CloseParen));
     }
 
-    Block<ErrorOr<Method>> raw_methods = try$(block<ErrorOr<Method>>([&] { return method(); }));
-    Vec<Method> methods{};
+    Block<ErrorOr<ParsedMethod>> raw_methods = try$(block<ErrorOr<ParsedMethod>>([&] { return method(); }));
+    Vec<ParsedMethod> methods{};
     for (const auto& method : raw_methods.elems) {
         methods.push_back(try$(method));
     }
 
-    return new Statement{
-        .var = new StatementDetails::Interface{
+    return new ParsedStatement{
+        .var = new ParsedInterface{
             id,
             interfaces,
             methods,
@@ -107,28 +107,28 @@ ErrorOr<Statement *> Parser::interface() {
     };
 }
 
-ErrorOr<Statement *> Parser::fun() {
-    Method m = try$(method());
+ErrorOr<ParsedStatement *> Parser::fun() {
+    ParsedMethod m = try$(method());
 
-    return new Statement{
-        .var = new StatementDetails::FunDecl{m.id, m.parameters, m.ret_type, m.body, m.unsafe}
+    return new ParsedStatement{
+        .var = new ParsedFunction{m.id, m.parameters, m.ret_type, m.body, m.unsafe}
     };
 }
 
-ErrorOr<Statement *> Parser::ret() {
+ErrorOr<ParsedStatement *> Parser::ret() {
     Span span = try$(current()).span;
     try$(expect(Token::Type::Return));
     Opt<Expression *> value = std::make_optional(try$(expr()));
-    return new Statement{ .var = new StatementDetails::Return{span, value} };
+    return new ParsedStatement{ .var = new ParsedReturn{span, value} };
 }
 
-ErrorOr<Statement *> Parser::var() {
+ErrorOr<ParsedStatement *> Parser::var() {
     Type *ty = try$(type());
     try$(expect(Token::Type::Id));
     SpannedStr id = SpannedStr{previous().value.value(), previous().span};
     try$(expect(Token::Type::Equals));
     Expression *ex = try$(expr());
-    return new Statement{ .var = new StatementDetails::VarDecl{ty, id, ex} };
+    return new ParsedStatement{ .var = new ParsedVariable{ty, id, ex} };
 }
 
 ErrorOr<Expression *> Parser::expr() { return binary(); }
@@ -180,9 +180,10 @@ ErrorOr<Expression *> Parser::primary() {
             expression = new Expression{.var = new ExpressionDetails::Id{previous().value.value()}};
         } break;
         case Token::Type::Int: {
+            Span span = try$(current()).span;
             int value = std::stoi(try$(current()).value.value());
             try$(expect(Token::Type::Int));
-            expression = new Expression{.var = new ExpressionDetails::Int{value}};
+            expression = new Expression{.var = new ExpressionDetails::Int{{value, span}}};
         } break;
         case Token::Type::String: {
             Str value = try$(current()).value.value();
@@ -350,7 +351,7 @@ ErrorOr<Type *> Parser::type() {
     return ty;
 }
 
-ErrorOr<Field> Parser::field() {
+ErrorOr<ParsedField> Parser::field() {
     Type *ty = try$(type());
     try$(expect(Token::Type::Id));
     Span span = previous().span;
@@ -359,13 +360,13 @@ ErrorOr<Field> Parser::field() {
     if (is(Token::Type::Equals)) {
         try$(expect(Token::Type::Equals));
         Expression *e = try$(expr());
-        if (e == nullptr) return Field{ty, id, {}};
+        if (e == nullptr) return ParsedField{ty, id, {}};
         value = std::make_optional(e);
     }
-    return Field{ty, SpannedStr{id, span}, value};
+    return ParsedField{ty, SpannedStr{id, span}, value};
 }
 
-ErrorOr<Method> Parser::method() {
+ErrorOr<ParsedMethod> Parser::method() {
     bool unsafe = false, static_ = false;
     if (is(Token::Type::Static)) {
         try$(expect(Token::Type::Static));
@@ -380,7 +381,7 @@ ErrorOr<Method> Parser::method() {
     try$(expect(Token::Type::Id));
     SpannedStr id = SpannedStr{previous().value.value(), previous().span};
 
-    Vec<Field> parameters{};
+    Vec<ParsedField> parameters{};
     try$(expect(Token::Type::OpenParen));
     while (m_pos < m_tokens.size() and not is(Token::Type::Eof) and not is(Token::Type::CloseParen)) {
         Type *ty = try$(type());
@@ -399,15 +400,15 @@ ErrorOr<Method> Parser::method() {
     }
 
     if (not is(Token::Type::Colon) and not is(Token::Type::Arrow))
-        return Method{id, parameters, ret_type, Block{Vec<Statement *>()}, unsafe};
+        return ParsedMethod{id, parameters, ret_type, Block{Vec<ParsedStatement *>()}, unsafe};
 
-    Block<ErrorOr<Statement *>> raw_body = try$(block<ErrorOr<Statement *>>([&] { return stmt(); }));
-    Vec<Statement *> stmts{};
+    Block<ErrorOr<ParsedStatement *>> raw_body = try$(block<ErrorOr<ParsedStatement *>>([&] { return stmt(); }));
+    Vec<ParsedStatement *> stmts{};
     for (const auto& stmt : raw_body.elems) {
         stmts.push_back(try$(stmt));
     }
 
-    return Method{id, parameters, ret_type, Block{stmts}, unsafe, static_};
+    return ParsedMethod{id, parameters, ret_type, Block{stmts}, unsafe, static_};
 }
 
 ErrorOr<Vec<Type *>> Parser::generics() {

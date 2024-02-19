@@ -10,14 +10,14 @@ class Parser {
   public:
     explicit Parser(Vec<Token> tokens) : m_tokens(std::move(tokens)), m_errors({}), m_pos(0) {}
 
-    ErrorOr<Vec<Statement *>> parse();
+    ErrorOr<Vec<ParsedStatement *>> parse();
 
-    ErrorOr<Statement *> stmt();
-    ErrorOr<Statement *> object();
-    ErrorOr<Statement *> interface();
-    ErrorOr<Statement *> fun();
-    ErrorOr<Statement *> ret();
-    ErrorOr<Statement *> var();
+    ErrorOr<ParsedStatement *> stmt();
+    ErrorOr<ParsedStatement *> object();
+    ErrorOr<ParsedStatement *> interface();
+    ErrorOr<ParsedStatement *> fun();
+    ErrorOr<ParsedStatement *> ret();
+    ErrorOr<ParsedStatement *> var();
 
     ErrorOr<Expression *> expr();
     ErrorOr<Expression *> binary();
@@ -27,8 +27,8 @@ class Parser {
 
     ErrorOr<Type *> type();
 
-    ErrorOr<Field> field();
-    ErrorOr<Method> method();
+    ErrorOr<ParsedField> field();
+    ErrorOr<ParsedMethod> method();
     ErrorOr<Vec<Type *>> generics();
 
     ErrorOr<Pattern *> pattern();
@@ -45,11 +45,14 @@ class Parser {
     Error error(Token::Type, Token::Type);
     template <typename... Args> Error error(Args...);
 
-//    [[nodiscard]] Vec<Token> tokens() const { return m_tokens; }
-//    [[nodiscard]] Vec<Error> errors() const { return m_errors; }
-//    [[nodiscard]] usz pos() const { return m_pos; }
+    [[nodiscard]] ParsedNamespace parsed_namespace() const { return m_parsed_namespace; }
+    [[nodiscard]] Vec<Token> tokens() const { return m_tokens; }
+    [[nodiscard]] Vec<Error> errors() const { return m_errors; }
+    [[nodiscard]] usz pos() const { return m_pos; }
 
   private:
+    ParsedNamespace m_parsed_namespace{};
+
     Vec<Token> m_tokens;
     Vec<Error> m_errors;
     usz m_pos{0};

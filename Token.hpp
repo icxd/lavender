@@ -81,7 +81,7 @@ struct Token {
         return strings[static_cast<usz>(type)];
     }
 
-    Type type;
+    Type type{};
     Opt<Str> value;
     Span span{};
 

@@ -5,14 +5,14 @@
 
 static usz indent = 0;
 
-void AstPrinter::print(const Vec<Statement *>& stmts) {
+void AstPrinter::print(const Vec<ParsedStatement *>& stmts) {
     for (auto stmt : stmts) {
         statement(stmt);
         std::cout << "\n";
     }
 }
 
-void AstPrinter::field(Field field) {
+void AstPrinter::field(ParsedField field) {
     for (usz i = 0; i < indent; i++)
         std::cout << "    ";
 
@@ -24,7 +24,7 @@ void AstPrinter::field(Field field) {
     std::cout << "\n";
 }
 
-void AstPrinter::method(Method method) {
+void AstPrinter::method(ParsedMethod method) {
     for (usz i = 0; i < indent; i++)
         std::cout << "    ";
 
@@ -46,12 +46,12 @@ void AstPrinter::method(Method method) {
     indent -= 1;
 }
 
-void AstPrinter::statement(Statement *stmt) {
+void AstPrinter::statement(ParsedStatement *stmt) {
     for (usz i = 0; i < indent; i++)
         std::cout << "    ";
 
     struct Visitor {
-        void operator()(const StatementDetails::Object *object) const {
+        void operator()(const ParsedObject *object) const {
             std::cout << "object " << object->id.value << "(";
             for (usz i = 0; i < object->interfaces.size(); i++) {
                 std::cout << object->interfaces.at(i).value;
@@ -68,7 +68,7 @@ void AstPrinter::statement(Statement *stmt) {
             indent -= 1;
         }
 
-        void operator()(const StatementDetails::Interface *interface) const {
+        void operator()(const ParsedInterface *interface) const {
             std::cout << "interface " << interface->id.value << "(";
             for (usz i = 0; i < interface->interfaces.size(); i++) {
                 std::cout << interface->interfaces.at(i).value;
@@ -81,7 +81,7 @@ void AstPrinter::statement(Statement *stmt) {
             indent -= 1;
         }
 
-        void operator()(const StatementDetails::FunDecl *fun) const {
+        void operator()(const ParsedFunction *fun) const {
             std::cout << (fun->unsafe ? "unsafe " : "") << "fun " << fun->id.value << "(";
             for (usz i = 0; i < fun->parameters.size(); ++i) {
                 auto& param = fun->parameters[i];
@@ -100,20 +100,20 @@ void AstPrinter::statement(Statement *stmt) {
             indent -= 1;
         }
 
-        void operator()(const StatementDetails::VarDecl *var) const {
+        void operator()(const ParsedVariable *var) const {
             std::cout << "var " << type(var->type) << " " << var->id.value << " = ";
             expression(var->expr, false);
             std::cout << "\n";
         }
 
-        void operator()(const StatementDetails::Return *ret) const {
+        void operator()(const ParsedReturn *ret) const {
             std::cout << "return ";
             if (ret->value.has_value())
                 expression(ret->value.value(), false);
             std::cout << "\n";
         }
 
-        void operator()(const StatementDetails::Expression *expr) const {
+        void operator()(const ParsedExpression *expr) const {
             expression(expr->expr, false);
             std::cout << "\n";
         }
@@ -136,7 +136,7 @@ void AstPrinter::expression(Expression *expr, bool print_indent) {
         }
 
         void operator()(const ExpressionDetails::Int *integer) const {
-            std::cout << std::to_string(integer->value);
+            std::cout << std::to_string(integer->value.value);
         }
 
         void operator()(const ExpressionDetails::String *string) const {

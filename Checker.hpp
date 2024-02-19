@@ -1,41 +1,20 @@
 #pragma once
 
+#include <tuple>
 #include <utility>
 #include "Common.hpp"
 #include "Ast.hpp"
 #include "Project.hpp"
 
-enum class SafetyContext { Safe, Unsafe };
+Opt<Error> typecheck_namespace(const ParsedNamespace&, ScopeId, Project&);
+Opt<Error> typecheck_record_predecl(const ParsedObject&, RecordId, ScopeId, Project&);
+Opt<Error> typecheck_record(const ParsedObject&, RecordId, ScopeId, Project&);
+Opt<Error> typecheck_method(const ParsedMethod&, RecordId, Project&);
 
-using ScopeId = usz;
+std::tuple<CheckedStatement, Opt<Error>> typecheck_statement(ParsedStatement *, ScopeId, Project&, SafetyContext);
+std::tuple<CheckedExpression, Opt<Error>> typecheck_expression(Expression *, ScopeId, Project&, SafetyContext, Opt<TypeId>);
+std::tuple<TypeId, Opt<Error>> typecheck_typename(Type *, ScopeId, Project&);
 
-struct Scope {
-    ScopeId id, parent_id;
-    SafetyContext context{SafetyContext::Safe};
-    Vec<Str> symbols;
-
-    Map<Str, FunctionId> functions;
-};
-
-class Checker {
-public:
-    explicit Checker(Project *project) noexcept;
-
-    ErrorOr<Void> check(const Vec<Statement *>&);
-
-private:
-    ErrorOr<Void> check_statement(Statement *);
-    ErrorOr<Type> check_expression(Expression *);
-    ErrorOr<Type> check_type(Type *);
-
-    [[nodiscard]] Scope *scope() const;
-    void begin_scope();
-    void end_scope();
-
-    template <typename... Args> Error error(const Span &, Args...);
-
-private:
-    Project *m_project;
-    Map<ScopeId, Scope *> m_scope_stack{};
-    ScopeId m_next_scope_id = 0;
-};
+TypeId substitute_typevars_in_type(TypeId, Map<TypeId, TypeId> *, Project &);
+TypeId substitute_typevars_in_type_helper(TypeId, Map<TypeId, TypeId> *, Project &);
+Opt<Error> check_types_for_compat(TypeId, TypeId, Map<TypeId, TypeId> *, Span, Project &);

@@ -3,74 +3,77 @@
 #include <format>
 #include "Common.hpp"
 
-struct Statement;
+struct ParsedStatement;
 struct Expression;
 struct Type;
 struct Pattern;
 
 template <typename T> struct Block { Vec<T> elems; };
 
-struct Field {
+struct ParsedField {
     Type *type;
     SpannedStr id;
     Opt<::Expression *> value;
 };
 
-struct Method {
+struct ParsedMethod {
     SpannedStr id;
-    Vec<Field> parameters;
+    Vec<ParsedField> parameters;
     Opt<Type *> ret_type;
-    Block<Statement *> body;
+    Block<ParsedStatement *> body;
     bool unsafe{false};
     bool static_{false};
 };
 
-namespace StatementDetails {
+struct ParsedObject {
+    SpannedStr id;
+    Vec<Type *> generic_params;
+    Opt<SpannedStr> parent;
+    Vec<SpannedStr> interfaces;
+    Vec<ParsedField> fields;
+    Vec<ParsedMethod> methods;
+};
 
-    struct Object {
-        SpannedStr id;
-        Vec<Type *> generic_params;
-        Opt<SpannedStr> parent;
-        Vec<SpannedStr> interfaces;
-        Vec<Field> fields;
-        Vec<Method> methods;
-    };
+struct ParsedInterface {
+    SpannedStr id;
+    Vec<SpannedStr> interfaces;
+    Vec<ParsedMethod> methods;
+};
 
-    struct Interface {
-        SpannedStr id;
-        Vec<SpannedStr> interfaces;
-        Vec<Method> methods;
-    };
+struct ParsedVariable {
+    Type *type;
+    SpannedStr id;
+    ::Expression *expr;
+};
 
-    struct VarDecl {
-        Type *type;
-        SpannedStr id;
-        ::Expression *expr;
-    };
+struct ParsedFunction {
+    SpannedStr id;
+    Vec<ParsedField> parameters;
+    Opt<Type *> ret_type;
+    Block<ParsedStatement *> body;
+    bool unsafe{false};
+};
 
-    struct FunDecl {
-        SpannedStr id;
-        Vec<Field> parameters;
-        Opt<Type *> ret_type;
-        Block<Statement *> body;
-        bool unsafe{false};
-    };
+struct ParsedReturn { Span span{}; Opt<::Expression *> value; };
+struct ParsedExpression { ::Expression *expr; };
 
-    struct Return { Span span{}; Opt<::Expression *> value; };
-    struct Expression { ::Expression *expr; };
-
-} // namespace StatementDetails
-
-struct Statement {
+struct ParsedStatement {
     enum class Kind { Object, Interface, Fun, Var, Return, Expr };
 
     Var<
-            StatementDetails::Object *,
-            StatementDetails::Interface *,
-            StatementDetails::FunDecl *,
-            StatementDetails::VarDecl *,
-            StatementDetails::Return *,
-            StatementDetails::Expression *> var;
+            ParsedObject *,
+            ParsedInterface *,
+            ParsedFunction *,
+            ParsedVariable *,
+            ParsedReturn *,
+            ParsedExpression *> var;
+};
+
+struct ParsedNamespace {
+    Opt<Str> name;
+    Vec<ParsedFunction *> functions;
+    Vec<ParsedObject *> objects;
+    Vec<ParsedNamespace *> namespaces;
 };
 
 struct Argument {
@@ -82,7 +85,7 @@ namespace ExpressionDetails {
 
     struct Null { Span span;};
     struct Id { SpannedStr id; };
-    struct Int { int value; };
+    struct Int { Spanned<int> value; };
     struct String { SpannedStr value; };
     struct Call {
         Span span;
@@ -164,6 +167,27 @@ struct Expression {
             ExpressionDetails::Access *,
             ExpressionDetails::Switch *,
             ExpressionDetails::UnsafeBlock *> var;
+
+    [[nodiscard]] Span span() const {
+        switch (static_cast<Kind>(var.index())) {
+#define CASE(ID) case Kind::ID: { \
+            auto *expr = std::get<ExpressionDetails::ID *>(var);
+            CASE(Null) return expr->span; }
+            CASE(Id) return expr->id.span; }
+            CASE(Int) return expr->value.span; }
+            CASE(String) return expr->value.span; }
+            CASE(Call) return expr->span; }
+            CASE(Index) return expr->expr->span(); }
+            CASE(Generic) return expr->expr->span(); }
+            CASE(Unary) return expr->value->span(); }
+            CASE(Binary) return expr->left->span(); }
+            CASE(If) return expr->condition->span(); }
+            CASE(Access) return expr->expr->span(); }
+            CASE(Switch) return expr->condition->span(); }
+            CASE(UnsafeBlock) return expr->body.elems[0]->span(); }
+#undef CASE
+        }
+    }
 };
 
 struct Type {
@@ -248,12 +272,12 @@ struct Pattern {
 
 class AstPrinter {
 public:
-    void print(const Vec<Statement *>&);
+    void print(const Vec<ParsedStatement *>&);
 
 private:
-    static void statement(Statement *);
+    static void statement(ParsedStatement *);
     static void expression(Expression *, bool = true);
     static Str type(Type *);
-    static void field(Field);
-    static void method(Method);
+    static void field(ParsedField);
+    static void method(ParsedMethod);
 };

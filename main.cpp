@@ -7,6 +7,8 @@
 #include <iostream>
 #include <sstream>
 
+void display_error(const Error &, const Str &);
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         return 1;
@@ -28,11 +30,7 @@ int main(int argc, char *argv[]) {
     auto tokenize_result = tokenize(filename, source);
 
     for (auto &error : tokenize_result.errors) {
-        auto &span = error.span;
-
-        std::cout << "\033[1m" << span.filename << ":" << span.line << ":"
-                  << span.column << ": \033[31merror: \033[0m" << error.message
-                  << "\n";
+        display_error(error, source);
     }
     if (!tokenize_result.errors.empty()) return 1;
 
@@ -58,14 +56,10 @@ int main(int argc, char *argv[]) {
     }
 
     Parser parser(tokens);
-    ErrorOr<Vec<Statement *>> stmts = parser.parse();
+    ErrorOr<Vec<ParsedStatement *>> stmts = parser.parse();
     if (not stmts.has_value()) {
         Error error = stmts.error();
-        auto &span = error.span;
-
-        std::cout << "\033[1m" << span.filename << ":" << span.line << ":"
-                  << span.column << ": \033[31merror: \033[0m" << error.message
-                  << "\n";
+        display_error(error, source);
         return 1;
     }
     auto statements = stmts.value();
@@ -73,17 +67,33 @@ int main(int argc, char *argv[]) {
     AstPrinter printer{};
     printer.print(statements);
 
-    Checker checker(&project);
-    auto checker_result = checker.check(statements);
-    if (not checker_result.has_value()) {
-        Error error = stmts.error();
-        auto &span = error.span;
+    auto *scope = new Scope(std::make_optional(0));
+    project.scopes.push_back(scope);
+    ScopeId scope_id = project.scopes.size() - 1;
 
-        std::cout << "\033[1m" << span.filename << ":" << span.line << ":"
-                  << span.column << ": \033[31merror: \033[0m" << error.message
-                  << "\n";
+    Opt<Error> result = typecheck_namespace(parser.parsed_namespace(), scope_id, project);
+    if (result.has_value()) {
+        Error error = result.value();
+        display_error(error, source);
         return 1;
     }
 
     return 0;
+}
+
+void display_error(const Error &error, const Str &source) {
+    auto &span = error.span;
+
+    std::cout << "\033[1;1m" << span.filename << ":" << span.line << ":"
+              << span.column << ": \033[31;1merror: \033[0m" << error.message
+              << "\n";
+
+    Vec<Str> lines = split(source, '\n');
+    Str line = lines[span.line - 1];
+
+    // TODO: highlight snippet using `tokenize(span.filename, source);`
+    usz length = std::to_string(span.line).size();
+    std::cout << "\033[36;1m " << span.line << " | \033[0m" << line << "\n";
+    std::cout << "\033[36;1m " << std::string(length, ' ') << " | \033[31;1m" << std::string(span.column - 1, ' ')
+              << '^' << std::string(span.length - 1, '~') << '\n';
 }

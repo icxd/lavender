@@ -31,6 +31,11 @@ template <typename T> struct Spanned {
     Span span;
 };
 
+template <typename T> struct Id {
+    Str id;
+    T value;
+};
+
 using SpannedStr = Spanned<Str>;
 
 struct Error {
@@ -66,3 +71,15 @@ private:
 #define UNIMPLEMENTED PANIC("unimplemented: %s", __PRETTY_FUNCTION__)
 
 [[noreturn]] void panic(const char *file, usz line, const char *fmt, ...);
+
+static inline std::vector<std::string> split(std::string str, char delim = ' ') {
+    std::vector<std::string> result;
+    size_t start = 0;
+    while (start < str.length()) {
+        size_t pos = str.find(delim, start);
+        if (pos == std::string::npos) pos = str.length();
+        result.push_back(str.substr(start, pos - start));
+        start = pos + 1;
+    }
+    return result;
+}

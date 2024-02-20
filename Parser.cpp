@@ -176,8 +176,10 @@ ErrorOr<Expression *> Parser::primary() {
             expression = new Expression{.var = new ExpressionDetails::Null{span}};
         } break;
         case Token::Type::Id: {
+            Span span = try$(current()).span;
+            Str value = try$(current()).value.value();
             try$(expect(Token::Type::Id));
-            expression = new Expression{.var = new ExpressionDetails::Id{previous().value.value()}};
+            expression = new Expression{.var = new ExpressionDetails::Id{{value, span}}};
         } break;
         case Token::Type::Int: {
             Span span = try$(current()).span;
@@ -186,9 +188,10 @@ ErrorOr<Expression *> Parser::primary() {
             expression = new Expression{.var = new ExpressionDetails::Int{{value, span}}};
         } break;
         case Token::Type::String: {
+            Span span = try$(current()).span;
             Str value = try$(current()).value.value();
             try$(expect(Token::Type::String));
-            expression = new Expression{.var = new ExpressionDetails::String{value}};
+            expression = new Expression{.var = new ExpressionDetails::String{{value, span}}};
         } break;
         case Token::Type::If: {
             try$(expect(Token::Type::If));

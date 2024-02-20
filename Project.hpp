@@ -90,18 +90,47 @@ struct CheckedFunction {
     CheckedBlock block;
 };
 
-struct CheckedExpression {};
+struct CheckedExpression {
+    enum class Tag {
+        Int,
+        String,
+        Var,
+        Garbage,
+    };
+
+    Tag tag{};
+
+    struct { Spanned<int> value; } integer;
+    struct { Spanned<Str> value; } string;
+    struct { Spanned<CheckedVariable> var; } var;
+
+    static CheckedExpression Int(Spanned<int> value) {
+        return CheckedExpression{.tag=Tag::Int, .integer={value}};
+    }
+
+    static CheckedExpression String(Spanned<Str> value) {
+        return CheckedExpression{.tag=Tag::String, .string={value}};
+    }
+
+    static CheckedExpression Var(Spanned<CheckedVariable> var) {
+        return CheckedExpression{.tag=Tag::Var, .var={var}};
+    }
+
+    static CheckedExpression Garbage() { return CheckedExpression{Tag::Garbage}; }
+};
 
 struct CheckedStatement {
     enum class Tag {
         Expression,
         VarDecl,
+        Return,
     };
 
     Tag tag{};
 
     struct { CheckedExpression *expr; } expression;
-    struct { CheckedVarDecl decl; CheckedExpression *expr; } var_decl;
+    struct { CheckedVarDecl decl; CheckedExpression *expr{}; } var_decl;
+    struct { CheckedExpression *expr{}; } return_;
 
     static CheckedStatement Expression(CheckedExpression *expr) {
         return CheckedStatement{.tag=Tag::Expression, .expression={expr}};
@@ -109,6 +138,10 @@ struct CheckedStatement {
 
     static CheckedStatement VarDecl(CheckedVarDecl decl, CheckedExpression *expr) {
         return CheckedStatement{.tag=Tag::VarDecl, .var_decl={decl, expr}};
+    }
+
+    static CheckedStatement Return(CheckedExpression *expr) {
+        return CheckedStatement{.tag=Tag::Return, .return_={expr}};
     }
 };
 

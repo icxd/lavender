@@ -13,6 +13,7 @@ Opt<Error> typecheck_method(const ParsedMethod&, RecordId, Project&);
 
 std::tuple<CheckedStatement, Opt<Error>> typecheck_statement(ParsedStatement *, ScopeId, Project&, SafetyContext);
 std::tuple<CheckedExpression, Opt<Error>> typecheck_expression(Expression *, ScopeId, Project&, SafetyContext, Opt<TypeId>);
+std::tuple<CheckedBlock, Opt<Error>> typecheck_block(const Block<ParsedStatement *>&, ScopeId, Project&, SafetyContext);
 std::tuple<TypeId, Opt<Error>> typecheck_typename(Type *, ScopeId, Project&);
 
 TypeId substitute_typevars_in_type(TypeId, Map<TypeId, TypeId> *, Project &);

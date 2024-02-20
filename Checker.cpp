@@ -211,7 +211,8 @@ Opt<Error> typecheck_method(const ParsedMethod& method, RecordId record_id, Proj
             error = error.value_or(x.error());
     }
 
-    // TODO: typecheck_block
+    auto [block, err2] = typecheck_block(method.body, function_scope_id, project, SafetyContext::Safe);
+    if (err2.has_value()) error = error.value_or(err2.value());
 
     TypeId return_type_id = UNKNOWN_TYPE_ID;
     if (method.ret_type.has_value()) {
@@ -223,7 +224,7 @@ Opt<Error> typecheck_method(const ParsedMethod& method, RecordId record_id, Proj
     if (return_type_id == UNKNOWN_TYPE_ID) return_type_id = UNIT_TYPE_ID;
 
     CheckedFunction checked_fn = project.functions[method_id];
-//    checked_fn.block = block;
+    checked_fn.block = block;
     checked_fn.return_type_id = return_type_id;
 
     return error;
@@ -237,7 +238,12 @@ std::tuple<CheckedStatement, Opt<Error>> typecheck_statement(ParsedStatement *st
         case ParsedStatement::Kind::Interface:
         case ParsedStatement::Kind::Fun:
         case ParsedStatement::Kind::Var:
-        case ParsedStatement::Kind::Return:
+            UNIMPLEMENTED;
+        case ParsedStatement::Kind::Return: {
+            auto *stmt = std::get<ParsedReturn *>(statement->var);
+            auto [output, err] = typecheck_expression(stmt->value.value(), scope_id, project, context, project.functions[project.current_function_index.value()].return_type_id);
+            return std::make_tuple(CheckedStatement::Return(&output), err);
+        }
         case ParsedStatement::Kind::Expr:
             UNIMPLEMENTED;
     }
@@ -274,10 +280,44 @@ std::tuple<CheckedExpression, Opt<Error>> typecheck_expression(Expression *expre
 
     switch (static_cast<Expression::Kind>(expression->var.index())) {
         case Expression::Kind::Null:
-        case Expression::Kind::Id:
-        case Expression::Kind::Int:
-        case Expression::Kind::String:
-        case Expression::Kind::Call:
+            UNIMPLEMENTED;
+        case Expression::Kind::Id: {
+            auto *expr = std::get<ExpressionDetails::Id *>(expression->var);
+
+            Opt<CheckedVariable> opt_var = project.find_var_in_scope(scope_id, expr->id.value);
+            if (not opt_var.has_value()) {
+                return std::make_tuple(
+                        CheckedExpression::Var({
+                                CheckedVariable{expr->id.value, type_hint.value_or(UNKNOWN_TYPE_ID)},
+                                expr->id.span
+                        }),
+                        Error{"variable not found", expr->id.span}
+                );
+            }
+            CheckedVariable var = opt_var.value();
+
+            auto [_, err] = unify_with_type_hint(project, var.type_id);
+            return std::make_tuple(CheckedExpression::Var({var, expr->id.span}), err);
+        }
+        case Expression::Kind::Int: {
+            auto *expr = std::get<ExpressionDetails::Int *>(expression->var);
+
+            // TODO: make sure integer constants can have user-specified type ids such as uint or int64
+            auto [type_id, err] = unify_with_type_hint(project, INT_TYPE_ID);
+            if (err.has_value()) error = error.value_or(err.value());
+
+            return std::make_tuple(CheckedExpression::Int(expr->value), error);
+        }
+        case Expression::Kind::String: {
+            auto *expr = std::get<ExpressionDetails::String *>(expression->var);
+
+            auto [type_id, err] = unify_with_type_hint(project, STRING_TYPE_ID);
+
+            return std::make_tuple(CheckedExpression::String(expr->value), err);
+        }
+        case Expression::Kind::Call: {
+            auto *expr = std::get<ExpressionDetails::Call *>(expression->var);
+        }
         case Expression::Kind::Index:
         case Expression::Kind::Generic:
         case Expression::Kind::Unary:
@@ -288,6 +328,21 @@ std::tuple<CheckedExpression, Opt<Error>> typecheck_expression(Expression *expre
         case Expression::Kind::UnsafeBlock:
             UNIMPLEMENTED;
     }
+}
+
+std::tuple<CheckedBlock, Opt<Error>> typecheck_block(const Block<ParsedStatement *>& block, ScopeId parent_scope_id, Project& project, SafetyContext context) {
+    Opt<Error> error = std::nullopt;
+    CheckedBlock checked_block = {{}};
+
+    ScopeId block_scope_id = project.create_scope(parent_scope_id);
+
+    for (const auto &stmt : block.elems) {
+        auto [checked_stmt, err] = typecheck_statement(stmt, block_scope_id, project, context);
+        if (err.has_value()) error = error.value_or(err.value());
+        checked_block.statements.push_back(&checked_stmt);
+    }
+
+    return std::make_tuple(checked_block, error);
 }
 
 std::tuple<TypeId, Opt<Error>> typecheck_typename(Type *unchecked_type, ScopeId scope_id, Project& project) {

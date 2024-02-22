@@ -3,6 +3,8 @@
 #include "Common.hpp"
 #include "Ast.hpp"
 
+class Project;
+
 enum : usz {
     UNKNOWN_TYPE_ID = 0,
     UNIT_TYPE_ID,
@@ -90,21 +92,53 @@ struct CheckedFunction {
     CheckedBlock block;
 };
 
-struct CheckedExpression {
+// Might need to be a tagged union later…
+enum CheckedUnaryOperator {
+    Dereference,
+    AddressOf,
+};
+
+extern "C" struct CheckedExpression {
     enum class Tag {
         Null,
         Int,
         String,
         Var,
         If,
+        BinaryOp,
+        UnaryOp,
     };
 
     Tag tag{};
 
-    struct { Spanned<int> value; } integer;
-    struct { Spanned<Str> value; } string;
-    struct { Spanned<CheckedVariable> var; } var;
-    struct { CheckedExpression *condition, *then, *else_; } if_;
+    union {
+        struct {
+            Spanned<int> value;
+        } integer;
+        struct {
+            Spanned<Str> value;
+        } string;
+        struct {
+            Spanned<CheckedVariable> var;
+        } var;
+        struct {
+            CheckedExpression *condition, *then, *else_;
+        } if_;
+        struct {
+            CheckedExpression *left;
+            ExpressionDetails::Binary::Operation op;
+            CheckedExpression *right;
+            Span span;
+            TypeId type_id;
+        } binary_op;
+        struct {
+            CheckedExpression *left{};
+            CheckedUnaryOperator op{};
+            Span span{};
+            Project &project;
+            SafetyContext context;
+        } unary_op;
+    };
 
     static CheckedExpression Null() { return CheckedExpression{Tag::Null}; }
 
@@ -122,6 +156,28 @@ struct CheckedExpression {
 
     static CheckedExpression If(CheckedExpression *cond, CheckedExpression *then, CheckedExpression *else_) {
         return CheckedExpression{.tag=Tag::If, .if_={cond, then, else_}};
+    }
+
+    static CheckedExpression BinaryOp(
+            CheckedExpression *left,
+            ExpressionDetails::Binary::Operation op,
+            CheckedExpression *right,
+            Span span,
+            TypeId type_id
+    ) {
+        return CheckedExpression{.tag=Tag::BinaryOp, .binary_op={left, op, right, span, type_id}};
+    }
+
+
+    [[nodiscard]] TypeId type_id() const {
+        switch (this->tag) {
+            case Tag::Null: return UNKNOWN_TYPE_ID;
+            case Tag::Int: return INT_TYPE_ID;
+            case Tag::String: return STRING_TYPE_ID;
+            case Tag::Var: return this->var.var.value.type_id;
+            case Tag::If: return this->if_.condition->type_id();
+            case Tag::BinaryOp: return this->binary_op.type_id;
+        }
     }
 };
 
@@ -150,8 +206,6 @@ struct CheckedStatement {
         return CheckedStatement{.tag=Tag::Return, .return_={expr}};
     }
 };
-
-class Project;
 
 struct Scope {
 public:

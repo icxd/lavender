@@ -1,8 +1,8 @@
 object SafePtr[A]:
     raw A ptr = null // Should raw pointers be nullable?
 
-    static fun new(A a) > SafePtr[A]:
-        return SafePtr[A](ptr: &a)
+//    static fun new(A a) > SafePtr[A]:
+//        return SafePtr[A](ptr: &a)
 
     fun unwrap_or(A a) > A:
         return if ptr == null then a else *ptr

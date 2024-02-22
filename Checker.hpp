@@ -15,6 +15,7 @@ std::tuple<CheckedStatement, Opt<Error>> typecheck_statement(ParsedStatement *, 
 std::tuple<CheckedExpression, Opt<Error>> typecheck_expression(Expression *, ScopeId, Project&, SafetyContext, Opt<TypeId>);
 std::tuple<CheckedBlock, Opt<Error>> typecheck_block(const Block<ParsedStatement *>&, ScopeId, Project&, SafetyContext);
 std::tuple<TypeId, Opt<Error>> typecheck_typename(Type *, ScopeId, Project&);
+std::tuple<TypeId, Opt<Error>> typecheck_binary_operation(CheckedExpression *, ExpressionDetails::Binary::Operation, CheckedExpression *, Span, Project&);
 
 TypeId substitute_typevars_in_type(TypeId, Map<TypeId, TypeId> *, Project &);
 TypeId substitute_typevars_in_type_helper(TypeId, Map<TypeId, TypeId> *, Project &);

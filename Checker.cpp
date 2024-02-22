@@ -335,16 +335,25 @@ std::tuple<CheckedExpression, Opt<Error>> typecheck_expression(Expression *expre
             UNIMPLEMENTED("Index");
         case Expression::Kind::GenericInstance:
             UNIMPLEMENTED("GenericInstance");
-        case Expression::Kind::Unary:
-            UNIMPLEMENTED("Unary");
+        case Expression::Kind::Unary: {
+            auto *expr = std::get<ExpressionDetails::Unary *>(expression->var);
+        }
         case Expression::Kind::Binary: {
             auto *expr = std::get<ExpressionDetails::Binary *>(expression->var);
 
-            auto [left, left_err] = typecheck_expression(expr->left, scope_id, project, context, type_hint);
+            auto [left, left_err] = typecheck_expression(expr->left, scope_id, project, context, std::nullopt);
             if (left_err.has_value()) error = error.value_or(left_err.value());
 
-            auto [right, right_err] = typecheck_expression(expr->right, scope_id, project, context, type_hint);
+            auto [right, right_err] = typecheck_expression(expr->right, scope_id, project, context, std::nullopt);
             if (right_err.has_value()) error = error.value_or(right_err.value());
+
+            auto [type_id, bin_err] = typecheck_binary_operation(&left, expr->operation, &right, expression->span(), project);
+            if (bin_err.has_value()) error = error.value_or(bin_err.value());
+
+            auto [unified_type_id, err] = unify_with_type_hint(project, type_id);
+            if (err.has_value()) error = error.value_or(err.value());
+
+            return std::make_tuple(CheckedExpression::BinaryOp(&left, expr->operation, &right, expression->span(), type_id), error);
         }
         case Expression::Kind::If: {
             auto *expr = std::get<ExpressionDetails::If *>(expression->var);
@@ -438,6 +447,26 @@ std::tuple<TypeId, Opt<Error>> typecheck_typename(Type *unchecked_type, ScopeId 
             else return std::make_tuple(UNKNOWN_TYPE_ID, std::make_optional(Error{std::format("undefined type `{}`", unchecked_type->id.value), unchecked_type->id.span}));
         }
     }
+}
+
+std::tuple<TypeId, Opt<Error>> typecheck_binary_operation(CheckedExpression *left, ExpressionDetails::Binary::Operation op, CheckedExpression *right, Span span, Project &project) {
+    const TypeId left_type_id = left->type_id();
+    const TypeId right_type_id = right->type_id();
+
+    TypeId type_id = left->type_id();
+    switch (op) {
+        case ExpressionDetails::Binary::Operation::Equals:
+            if (left_type_id != right_type_id) {
+                return std::make_tuple(left_type_id, Error{
+                        "binary comparison operation between incompatible types",
+                        span,
+                });
+            }
+            type_id = BOOL_TYPE_ID;
+            break;
+    }
+
+    return std::make_tuple(type_id, std::nullopt);
 }
 
 TypeId substitute_typevars_in_type(TypeId type_id, Map<TypeId, TypeId> *generic_inferences, Project &project) {

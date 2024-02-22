@@ -92,10 +92,11 @@ struct CheckedFunction {
 
 struct CheckedExpression {
     enum class Tag {
+        Null,
         Int,
         String,
         Var,
-        Garbage,
+        If,
     };
 
     Tag tag{};
@@ -103,6 +104,9 @@ struct CheckedExpression {
     struct { Spanned<int> value; } integer;
     struct { Spanned<Str> value; } string;
     struct { Spanned<CheckedVariable> var; } var;
+    struct { CheckedExpression *condition, *then, *else_; } if_;
+
+    static CheckedExpression Null() { return CheckedExpression{Tag::Null}; }
 
     static CheckedExpression Int(Spanned<int> value) {
         return CheckedExpression{.tag=Tag::Int, .integer={value}};
@@ -116,7 +120,9 @@ struct CheckedExpression {
         return CheckedExpression{.tag=Tag::Var, .var={var}};
     }
 
-    static CheckedExpression Garbage() { return CheckedExpression{Tag::Garbage}; }
+    static CheckedExpression If(CheckedExpression *cond, CheckedExpression *then, CheckedExpression *else_) {
+        return CheckedExpression{.tag=Tag::If, .if_={cond, then, else_}};
+    }
 };
 
 struct CheckedStatement {

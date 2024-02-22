@@ -97,7 +97,9 @@ namespace ExpressionDetails {
         ::Expression *expr;
         ::Expression *index;
     };
-    struct Generic {
+    struct GenericInstance {
+        // For example, if you have an object `object Foo[A]: ...`
+        // then if you write `Foo[int]`, that would be an instance
         ::Expression *expr;
         Vec<Type *> generic_args;
     };
@@ -118,7 +120,7 @@ namespace ExpressionDetails {
     struct If {
         ::Expression *condition;
         ::Expression *then;
-        Opt<::Expression *> else_;
+        ::Expression *else_;
     };
 
     struct Access {
@@ -144,7 +146,7 @@ struct Expression {
         String,
         Call,
         Index,
-        Generic,
+        GenericInstance,
         Unary,
         Binary,
         If,
@@ -160,7 +162,7 @@ struct Expression {
             ExpressionDetails::String *,
             ExpressionDetails::Call *,
             ExpressionDetails::Index *,
-            ExpressionDetails::Generic *,
+            ExpressionDetails::GenericInstance *,
             ExpressionDetails::Unary *,
             ExpressionDetails::Binary *,
             ExpressionDetails::If *,
@@ -178,7 +180,7 @@ struct Expression {
             CASE(String) return expr->value.span; }
             CASE(Call) return expr->span; }
             CASE(Index) return expr->expr->span(); }
-            CASE(Generic) return expr->expr->span(); }
+            CASE(GenericInstance) return expr->expr->span(); }
             CASE(Unary) return expr->value->span(); }
             CASE(Binary) return expr->left->span(); }
             CASE(If) return expr->condition->span(); }

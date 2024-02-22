@@ -196,6 +196,7 @@ Opt<Error> typecheck_method(const ParsedMethod& method, RecordId record_id, Proj
     Opt<FunctionId> opt_method_id = project.find_function_in_scope(record_scope_id, method.id.value);
     if (not opt_method_id.has_value()) PANIC("Internal error: pushed a checked function but it's not defined.");
     FunctionId method_id = opt_method_id.value();
+    project.current_function_index = std::make_optional(method_id);
 
     CheckedFunction checked_function = project.functions[method_id];
     ScopeId function_scope_id = checked_function.scope_id;
@@ -227,6 +228,8 @@ Opt<Error> typecheck_method(const ParsedMethod& method, RecordId record_id, Proj
     checked_fn.block = block;
     checked_fn.return_type_id = return_type_id;
 
+    project.current_function_index = std::nullopt;
+
     return error;
 }
 
@@ -235,17 +238,23 @@ std::tuple<CheckedStatement, Opt<Error>> typecheck_statement(ParsedStatement *st
 
     switch (static_cast<ParsedStatement::Kind>(statement->var.index())) {
         case ParsedStatement::Kind::Object:
+            UNIMPLEMENTED("Object");
         case ParsedStatement::Kind::Interface:
+            UNIMPLEMENTED("Interface");
         case ParsedStatement::Kind::Fun:
+            UNIMPLEMENTED("Fun");
         case ParsedStatement::Kind::Var:
-            UNIMPLEMENTED;
+            UNIMPLEMENTED("Var");
         case ParsedStatement::Kind::Return: {
             auto *stmt = std::get<ParsedReturn *>(statement->var);
             auto [output, err] = typecheck_expression(stmt->value.value(), scope_id, project, context, project.functions[project.current_function_index.value()].return_type_id);
             return std::make_tuple(CheckedStatement::Return(&output), err);
         }
-        case ParsedStatement::Kind::Expr:
-            UNIMPLEMENTED;
+        case ParsedStatement::Kind::Expr: {
+            auto *stmt = std::get<ParsedExpression *>(statement->var);
+            auto [output, err] = typecheck_expression(stmt->expr, scope_id, project, context, project.functions[project.current_function_index.value()].return_type_id);
+            return std::make_tuple(CheckedStatement::Expression(&output), err);
+        }
     }
 }
 
@@ -279,8 +288,7 @@ std::tuple<CheckedExpression, Opt<Error>> typecheck_expression(Expression *expre
     };
 
     switch (static_cast<Expression::Kind>(expression->var.index())) {
-        case Expression::Kind::Null:
-            UNIMPLEMENTED;
+        case Expression::Kind::Null: return std::make_tuple(CheckedExpression::Null(), std::nullopt);
         case Expression::Kind::Id: {
             auto *expr = std::get<ExpressionDetails::Id *>(expression->var);
 
@@ -317,16 +325,47 @@ std::tuple<CheckedExpression, Opt<Error>> typecheck_expression(Expression *expre
         }
         case Expression::Kind::Call: {
             auto *expr = std::get<ExpressionDetails::Call *>(expression->var);
+
+            auto [id, id_err] = typecheck_expression(expr->callee, scope_id, project, context, type_hint);
+            if (id_err.has_value()) error = error.value_or(id_err.value());
+
+            UNIMPLEMENTED("Call");
         }
         case Expression::Kind::Index:
-        case Expression::Kind::Generic:
+            UNIMPLEMENTED("Index");
+        case Expression::Kind::GenericInstance:
+            UNIMPLEMENTED("GenericInstance");
         case Expression::Kind::Unary:
-        case Expression::Kind::Binary:
-        case Expression::Kind::If:
+            UNIMPLEMENTED("Unary");
+        case Expression::Kind::Binary: {
+            auto *expr = std::get<ExpressionDetails::Binary *>(expression->var);
+
+            auto [left, left_err] = typecheck_expression(expr->left, scope_id, project, context, type_hint);
+            if (left_err.has_value()) error = error.value_or(left_err.value());
+
+            auto [right, right_err] = typecheck_expression(expr->right, scope_id, project, context, type_hint);
+            if (right_err.has_value()) error = error.value_or(right_err.value());
+        }
+        case Expression::Kind::If: {
+            auto *expr = std::get<ExpressionDetails::If *>(expression->var);
+
+            auto [cond, cond_err] = typecheck_expression(expr->condition, scope_id, project, context, type_hint);
+            if (cond_err.has_value()) error = error.value_or(cond_err.value());
+
+            auto [then, then_err] = typecheck_expression(expr->then, scope_id, project, context, type_hint);
+            if (then_err.has_value()) error = error.value_or(then_err.value());
+
+            auto [else_, else_err] = typecheck_expression(expr->else_, scope_id, project, context, type_hint);
+            if (else_err.has_value()) error = error.value_or(else_err.value());
+
+            return std::make_tuple(CheckedExpression::If(&cond, &then, &else_), error);
+        }
         case Expression::Kind::Access:
+            UNIMPLEMENTED("Access");
         case Expression::Kind::Switch:
+            UNIMPLEMENTED("Switch");
         case Expression::Kind::UnsafeBlock:
-            UNIMPLEMENTED;
+            UNIMPLEMENTED("UnsafeBlock");
     }
 }
 

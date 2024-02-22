@@ -36,24 +36,24 @@ int main(int argc, char *argv[]) {
 
     auto tokens = normalize(tokenize_result.tokens);
 
-    for (auto &token : tokens) {
-        auto &span = token.span;
-
-        std::cout << "\033[1m" << span.filename << ":" << span.line << ":"
-                  << span.column << ": \033[32mtoken: \033[0m"
-                  << Token::type_to_string(token.type);
-        switch (token.type) {
-        case Token::Type::Id:
-        case Token::Type::Int:
-        case Token::Type::Float:
-        case Token::Type::String:
-            std::cout << " `" << token.value.value() << "`";
-            break;
-        default:
-            break;
-        }
-        std::cout << "\n";
-    }
+//    for (auto &token : tokens) {
+//        auto &span = token.span;
+//
+//        std::cout << "\033[1m" << span.filename << ":" << span.line << ":"
+//                  << span.column << ": \033[32mtoken: \033[0m"
+//                  << Token::type_to_string(token.type);
+//        switch (token.type) {
+//        case Token::Type::Id:
+//        case Token::Type::Int:
+//        case Token::Type::Float:
+//        case Token::Type::String:
+//            std::cout << " `" << token.value.value() << "`";
+//            break;
+//        default:
+//            break;
+//        }
+//        std::cout << "\n";
+//    }
 
     Parser parser(tokens);
     ErrorOr<Vec<ParsedStatement *>> stmts = parser.parse();
@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
     auto statements = stmts.value();
 
     AstPrinter printer{};
-    printer.print(statements);
+//    printer.print(statements);
 
     auto *scope = new Scope(std::make_optional(0));
     project.scopes.push_back(scope);

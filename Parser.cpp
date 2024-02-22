@@ -198,13 +198,9 @@ ErrorOr<Expression *> Parser::primary() {
             Expression *condition = try$(expr());
             try$(expect(Token::Type::Then));
             Expression *then = try$(expr());
-            if (is(Token::Type::Else)) {
-                try$(expect(Token::Type::Else));
-                Expression *otherwise = try$(expr());
-                expression = new Expression{.var = new ExpressionDetails::If{condition, then, otherwise}};
-            } else {
-                expression = new Expression{.var = new ExpressionDetails::If{condition, then, std::nullopt}};
-            }
+            try$(expect(Token::Type::Else));
+            Expression *otherwise = try$(expr());
+            expression = new Expression{.var = new ExpressionDetails::If{condition, then, otherwise}};
         } break;
         case Token::Type::Switch: {
             try$(expect(Token::Type::Switch));
@@ -290,7 +286,7 @@ ErrorOr<Expression *> Parser::postfix(Expression *expression) {
                 return postfix(new Expression{.var = new ExpressionDetails::Call{previous().span, expression, generic_args, args}});
             }
 
-            return postfix(new Expression{.var = new ExpressionDetails::Generic{expression, generic_args}});
+            return postfix(new Expression{.var = new ExpressionDetails::GenericInstance{expression, generic_args}});
         }
         case Token::Type::Dot: {
             advance();

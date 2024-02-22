@@ -164,7 +164,7 @@ void AstPrinter::expression(Expression *expr, bool print_indent) {
             std::cout << "]";
         }
 
-        void operator()(const ExpressionDetails::Generic *generic) const {
+        void operator()(const ExpressionDetails::GenericInstance *generic) const {
             expression(generic->expr, false);
             std::cout << "[";
             for (usz i = 0; i < generic->generic_args.size(); ++i) {
@@ -203,10 +203,8 @@ void AstPrinter::expression(Expression *expr, bool print_indent) {
             expression(if_->condition, false);
             std::cout << " then ";
             expression(if_->then, false);
-            if (if_->else_.has_value()) {
-                std::cout << " else ";
-                expression(if_->else_.value(), false);
-            }
+            std::cout << " else ";
+            expression(if_->else_, false);
         }
 
         void operator()(const ExpressionDetails::Access *access) const {

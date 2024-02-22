@@ -68,7 +68,10 @@ private:
     })
 
 #define PANIC(msg, ...) panic(__FILE__, __LINE__, msg, ##__VA_ARGS__)
-#define UNIMPLEMENTED PANIC("unimplemented: %s", __PRETTY_FUNCTION__)
+#define UNIMPLEMENTED(x) PANIC("unimplemented: %s in %s", x, __PRETTY_FUNCTION__)
+
+#define STRINGIFY_HELPER(x) #x
+#define STRINGIFY(x) STRINGIFY_HELPER(x)
 
 [[noreturn]] void panic(const char *file, usz line, const char *fmt, ...);
 

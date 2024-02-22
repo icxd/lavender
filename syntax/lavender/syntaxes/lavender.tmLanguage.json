@@ -87,15 +87,9 @@
 		},
 		"functions": {
 			"patterns": [{
-				"match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(",
+				"match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()",
 				"captures": {
 					"1": { "name": "entity.name.function.lavender" }
-				}
-			}, {
-				"match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(\\:)([ ]|.)",
-				"captures": {
-					"1": { "name": "variable.name.lavender" },
-					"2": { "name": "keyword.operator.lavender" }
 				}
 			}]
 		},

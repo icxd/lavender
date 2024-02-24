@@ -24,6 +24,21 @@ struct Void {};
 struct Span {
     const char *filename;
     usz line, column, length;
+
+    Span extend(Span other) {
+        if (other.line < line) {
+            line = other.line;
+            column = other.column;
+        }
+        if (other.line == line and other.column < column) {
+            column = other.column;
+        }
+        if (other.line == line and other.column == column and other.length > length) {
+            length = other.length;
+        }
+
+        return *this;
+    }
 };
 
 template <typename T> struct Spanned {

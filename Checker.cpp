@@ -143,6 +143,11 @@ Opt<Error> typecheck_record(const ParsedObject& object, RecordId record_id, Scop
             .type_id = checked_member_type,
             .span = unchecked_member.id.span,
         });
+
+        project.add_var_to_scope(checked_record_scope_id, CheckedVariable{
+                unchecked_member.id.value,
+                checked_member_type,
+        }, unchecked_member.id.span);
     }
 
     // No constructor was found so we need to make one
@@ -288,7 +293,7 @@ std::tuple<CheckedExpression, Opt<Error>> typecheck_expression(Expression *expre
     };
 
     switch (static_cast<Expression::Kind>(expression->var.index())) {
-        case Expression::Kind::Null: return std::make_tuple(CheckedExpression::Null(), std::nullopt);
+        case Expression::Kind::Null: return std::make_tuple(CheckedExpression::Null(UNKNOWN_TYPE_ID), std::nullopt);
         case Expression::Kind::Id: {
             auto *expr = std::get<ExpressionDetails::Id *>(expression->var);
 
@@ -337,6 +342,20 @@ std::tuple<CheckedExpression, Opt<Error>> typecheck_expression(Expression *expre
             UNIMPLEMENTED("GenericInstance");
         case Expression::Kind::Unary: {
             auto *expr = std::get<ExpressionDetails::Unary *>(expression->var);
+
+            auto [left, left_err] = typecheck_expression(expr->value, scope_id, project, context, std::nullopt);
+            if (left_err.has_value()) error = error.value_or(left_err.value());
+
+            CheckedUnaryOperator checked_op;
+            switch (expr->operation) {
+                case ExpressionDetails::Unary::Operation::Dereference: checked_op = CheckedUnaryOperator::Dereference; break;
+                case ExpressionDetails::Unary::Operation::AddressOf: checked_op = CheckedUnaryOperator::AddressOf; break;
+            }
+
+            auto [checked_expr, err] = typecheck_unary_operation(&left, checked_op, expression->span(), project, context);
+            if (err.has_value()) error = error.value_or(err.value());
+
+            return std::make_tuple(checked_expr, error);
         }
         case Expression::Kind::Binary: {
             auto *expr = std::get<ExpressionDetails::Binary *>(expression->var);
@@ -458,7 +477,9 @@ std::tuple<TypeId, Opt<Error>> typecheck_binary_operation(CheckedExpression *lef
         case ExpressionDetails::Binary::Operation::Equals:
             if (left_type_id != right_type_id) {
                 return std::make_tuple(left_type_id, Error{
-                        "binary comparison operation between incompatible types",
+                        std::format("binary comparison operation between incompatible types ({} and {})",
+                                    project.typename_for_type_id(left_type_id),
+                                    project.typename_for_type_id(right_type_id)),
                         span,
                 });
             }
@@ -467,6 +488,33 @@ std::tuple<TypeId, Opt<Error>> typecheck_binary_operation(CheckedExpression *lef
     }
 
     return std::make_tuple(type_id, std::nullopt);
+}
+
+std::tuple<CheckedExpression, Opt<Error>> typecheck_unary_operation(CheckedExpression *expr, CheckedUnaryOperator op, Span span, Project &project, SafetyContext context) {
+    TypeId expr_type_id = expr->type_id();
+    CheckedType expr_type = project.types[expr_type_id];
+
+    switch (op) {
+        case Dereference: {
+            switch (expr_type.tag) {
+                case CheckedType::Tag::RawPtr:
+                    return std::make_tuple(CheckedExpression::UnaryOp(expr, op, span, expr_type.rawptr.subtype),
+                                           context == SafetyContext::Unsafe ? std::nullopt : std::make_optional(Error{
+                            "dereference of raw pointer outside of unsafe block",
+                            span
+                    }));
+                default: return std::make_tuple(CheckedExpression::UnaryOp(expr, op, span, UNKNOWN_TYPE_ID), Error{
+                        "dereference of a non-pointer value",
+                        span
+                });
+            }
+        }
+        case AddressOf: {
+            TypeId type_id = project.find_or_add_type_id(CheckedType::RawPtr(expr->type_id()));
+
+            return std::make_tuple(CheckedExpression::UnaryOp(expr, op, span, type_id), std::nullopt);
+        }
+    }
 }
 
 TypeId substitute_typevars_in_type(TypeId type_id, Map<TypeId, TypeId> *generic_inferences, Project &project) {

@@ -98,7 +98,7 @@ enum CheckedUnaryOperator {
     AddressOf,
 };
 
-extern "C" struct CheckedExpression {
+struct CheckedExpression {
     enum class Tag {
         Null,
         Int,
@@ -111,36 +111,28 @@ extern "C" struct CheckedExpression {
 
     Tag tag{};
 
-    union {
-        struct {
-            Spanned<int> value;
-        } integer;
-        struct {
-            Spanned<Str> value;
-        } string;
-        struct {
-            Spanned<CheckedVariable> var;
-        } var;
-        struct {
-            CheckedExpression *condition, *then, *else_;
-        } if_;
-        struct {
-            CheckedExpression *left;
-            ExpressionDetails::Binary::Operation op;
-            CheckedExpression *right;
-            Span span;
-            TypeId type_id;
-        } binary_op;
-        struct {
-            CheckedExpression *left{};
-            CheckedUnaryOperator op{};
-            Span span{};
-            Project &project;
-            SafetyContext context;
-        } unary_op;
-    };
+    struct { TypeId type_id; } null;
+    struct { Spanned<int> value; } integer;
+    struct { Spanned<Str> value; } string;
+    struct { Spanned<CheckedVariable> var; } var;
+    struct { CheckedExpression *condition, *then, *else_; } if_;
+    struct {
+        CheckedExpression *left;
+        ExpressionDetails::Binary::Operation op;
+        CheckedExpression *right;
+        Span span;
+        TypeId type_id;
+    } binary_op;
+    struct UnaryOp {
+        CheckedExpression *left{};
+        CheckedUnaryOperator op{};
+        Span span{};
+        TypeId type_id;
+    } unary_op;
 
-    static CheckedExpression Null() { return CheckedExpression{Tag::Null}; }
+    static CheckedExpression Null(TypeId type_id) {
+        return CheckedExpression{.tag = Tag::Null, .null = {type_id}};
+    }
 
     static CheckedExpression Int(Spanned<int> value) {
         return CheckedExpression{.tag=Tag::Int, .integer={value}};
@@ -168,15 +160,24 @@ extern "C" struct CheckedExpression {
         return CheckedExpression{.tag=Tag::BinaryOp, .binary_op={left, op, right, span, type_id}};
     }
 
+    static CheckedExpression UnaryOp(
+            CheckedExpression *left,
+            CheckedUnaryOperator op,
+            Span span,
+            TypeId type_id
+    ) {
+        return CheckedExpression{.tag=Tag::UnaryOp, .unary_op={left, op, span, type_id}};
+    }
 
     [[nodiscard]] TypeId type_id() const {
         switch (this->tag) {
-            case Tag::Null: return UNKNOWN_TYPE_ID;
+            case Tag::Null: return this->null.type_id;
             case Tag::Int: return INT_TYPE_ID;
             case Tag::String: return STRING_TYPE_ID;
             case Tag::Var: return this->var.var.value.type_id;
             case Tag::If: return this->if_.condition->type_id();
             case Tag::BinaryOp: return this->binary_op.type_id;
+            case Tag::UnaryOp: return this->unary_op.left->type_id();
         }
     }
 };

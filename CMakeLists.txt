@@ -28,7 +28,8 @@ add_executable(compiler
         Common.cpp
         Common.cpp
         Project.cpp
-        Project.hpp)
+        Project.hpp
+)
 
 #llvm_map_components_to_libnames(llvm_libs support core irreader)
 #
